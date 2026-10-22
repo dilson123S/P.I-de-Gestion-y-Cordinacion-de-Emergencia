@@ -1,0 +1,217 @@
+// =============================================
+// Esquema Prisma para la Plataforma de Gestión de Emergencias
+// Base de datos: PostgreSQL
+// =============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// ENUMERACIONES
+// =============================================
+
+/// Flujo estricto del ciclo de vida de una emergencia
+/// REPORTADO → CLASIFICADO → ASIGNADO → EN_ATENCION → CERRADO
+enum EstadoEmergencia {
+  REPORTADO
+  CLASIFICADO
+  ASIGNADO
+  EN_ATENCION
+  CERRADO
+}
+
+/// Roles del sistema para control de acceso
+enum RolUsuario {
+  CIUDADANO
+  OPERADOR
+  DESPACHADOR
+  PERSONAL_CAMPO
+  ADMIN
+}
+
+/// Estado operativo de las unidades de emergencia
+enum EstadoUnidad {
+  DISPONIBLE
+  DESPACHADA
+  EN_ESCENA
+  FUERA_DE_SERVICIO
+}
+
+// =============================================
+// TABLAS PRINCIPALES
+// =============================================
+
+/// Usuario: Entidad que agrupa a todos los actores del sistema
+model Usuario {
+  id              Int       @id @default(autoincrement())
+  nombre          String
+  apellido        String
+  email           String    @unique
+  telefono        String?
+  password_hash   String
+  rol             RolUsuario
+  activo          Boolean   @default(true)
+  fecha_creacion  DateTime  @default(now())
+  fecha_actualizacion DateTime @updatedAt
+
+  // Relaciones como actor en emergencias
+  reportes_ciudadano    Emergencia[] @relation("CiudadanoReporte")
+  clasificaciones_operador Emergencia[] @relation("OperadorClasificacion")
+  despachos_despachador    Emergencia[] @relation("DespachadorAsignacion")
+
+  // Relación con unidades (personal de campo)
+  unidad_asignada   Unidad?  @relation("PersonalUnidad")
+
+  // Auditoría
+  acciones_auditoria LogAuditoria[]
+
+  @@map("usuarios")
+}
+
+/// Catálogo de tipos de emergencia (RF-09 - Catálogos administrables)
+model CatalogoTipoEmergencia {
+  id          Int       @id @default(autoincrement())
+  codigo      String    @unique
+  nombre      String
+  descripcion String?
+  prioridad_default Int @default(3)  // 1=Crítica, 2=Alta, 3=Media, 4=Baja
+  icono       String?
+  activo      Boolean   @default(true)
+
+  emergencias Emergencia[]
+
+  @@map("catalogo_tipo_emergencia")
+}
+
+/// Unidad: Vehículos y equipos despachados a campo
+model Unidad {
+  id              Int          @id @default(autoincrement())
+  codigo          String       @unique
+  tipo            String       // Ambulancia, Bomberos, Policía, etc.
+  placa           String?
+  estado          EstadoUnidad @default(DISPONIBLE)
+  latitud_actual  Float?
+  longitud_actual Float?
+  fecha_creacion  DateTime     @default(now())
+
+  // Personal asignado a la unidad
+  id_personal     Int?         @unique
+  personal        Usuario?     @relation("PersonalUnidad", fields: [id_personal], references: [id])
+
+  // Emergencias atendidas
+  emergencias     Emergencia[]
+
+  @@map("unidades")
+}
+
+/// =============================================
+/// ENTIDAD CENTRAL: EMERGENCIA (REPORTE)
+/// =============================================
+/// Principio rector RNF-07: Registro único de datos.
+/// La información capturada en el reporte inicial fluye automáticamente
+/// a las siguientes etapas sin re-digitación.
+/// Flujo estricto: reportar → clasificar → asignar → atender → cerrar
+model Emergencia {
+  id              Int       @id @default(autoincrement())
+
+  // --- Datos de captura inicial (RF-01) ---
+  descripcion     String
+  latitud         Float
+  longitud        Float
+  evidencia_url   String?   // URL a foto o video adjunto
+  fecha_creacion  DateTime  @default(now())
+
+  // --- Estado y flujo ---
+  estado          EstadoEmergencia @default(REPORTADO)
+  prioridad       Int       @default(3) // 1=Crítica, 5=Baja
+
+  // --- Datos de clasificación (fase CLASIFICADO) ---
+  notas_clasificacion String?
+  fecha_clasificacion DateTime?
+
+  // --- Datos de asignación (fase ASIGNADO) ---
+  notas_despacho  String?
+  fecha_asignacion DateTime?
+
+  // --- Datos de atención (fase EN_ATENCION) ---
+  notas_atencion  String?
+  fecha_inicio_atencion DateTime?
+
+  // --- Datos de cierre (fase CERRADO) ---
+  resolucion      String?
+  fecha_cierre    DateTime?
+
+  // --- LLAVES FORÁNEAS: Conexión de Actores ---
+
+  /// RF-01: Ciudadano que creó el reporte
+  id_ciudadano    Int
+  ciudadano       Usuario   @relation("CiudadanoReporte", fields: [id_ciudadano], references: [id])
+
+  /// RF-03: Operador que validó y clasificó el caso
+  id_operador     Int?
+  operador        Usuario?  @relation("OperadorClasificacion", fields: [id_operador], references: [id])
+
+  /// RF-05: Despachador que realizó la asignación
+  id_despachador  Int?
+  despachador     Usuario?  @relation("DespachadorAsignacion", fields: [id_despachador], references: [id])
+
+  /// Unidad/vehículo despachada a campo
+  id_unidad       Int?
+  unidad          Unidad?   @relation(fields: [id_unidad], references: [id])
+
+  /// RF-09: Tipo de emergencia del catálogo administrable
+  id_tipo_emergencia Int?
+  tipo_emergencia    CatalogoTipoEmergencia? @relation(fields: [id_tipo_emergencia], references: [id])
+
+  // --- Auditoría ---
+  logs_auditoria  LogAuditoria[]
+  fecha_actualizacion DateTime @updatedAt
+
+  @@index([estado])
+  @@index([id_ciudadano])
+  @@index([fecha_creacion])
+  @@map("emergencias")
+}
+
+/// RNF-09: Auditoría y Trazabilidad Estricta
+/// Registra cada cambio de estado y acción sobre una emergencia
+model LogAuditoria {
+  id                   Int      @id @default(autoincrement())
+
+  /// Emergencia afectada
+  id_emergencia        Int
+  emergencia           Emergencia @relation(fields: [id_emergencia], references: [id])
+
+  /// Usuario que realizó la acción
+  id_usuario_accion    Int
+  usuario_accion       Usuario  @relation(fields: [id_usuario_accion], references: [id])
+
+  /// Fecha y hora de la acción
+  fecha                DateTime @default(now())
+
+  /// Descripción de la acción realizada
+  accion_realizada     String   // ej: "Clasificación de reporte", "Asignación de unidad"
+
+  /// Estado anterior del reporte
+  estado_anterior      EstadoEmergencia?
+
+  /// Estado nuevo del reporte
+  estado_nuevo         EstadoEmergencia?
+
+  /// Datos sensibles modificados (JSON)
+  datos_modificados    Json?
+
+  /// IP del usuario que realizó la acción
+  ip_address           String?
+
+  @@index([id_emergencia])
+  @@index([id_usuario_accion])
+  @@index([fecha])
+  @@map("log_auditoria")
+}
