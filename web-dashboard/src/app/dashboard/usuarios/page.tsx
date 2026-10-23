@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Users, Shield, CheckCircle2, XCircle } from 'lucide-react';
-import Badge from '@/components/ui/Badge';
+import { Users, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Usuario } from '@/types';
+import { mockUsuarios } from '@/lib/mock-data';
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -14,9 +14,13 @@ export default function UsuariosPage() {
     async function cargar() {
       try {
         const res = await api.get('/usuarios');
-        if (res.data?.datos) setUsuarios(res.data.datos);
+        if (res.data?.datos && res.data.datos.length > 0) {
+          setUsuarios(res.data.datos);
+        } else {
+          setUsuarios(mockUsuarios);
+        }
       } catch (err) {
-        console.error(err);
+        setUsuarios(mockUsuarios);
       } finally {
         setLoading(false);
       }

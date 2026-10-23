@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Plus } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { BookOpen } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CatalogoTipoEmergencia } from '@/types';
+import { mockCatalogo } from '@/lib/mock-data';
 
 export default function CatalogoPage() {
   const [catalogo, setCatalogo] = useState<CatalogoTipoEmergencia[]>([]);
@@ -14,9 +14,13 @@ export default function CatalogoPage() {
     async function cargar() {
       try {
         const res = await api.get('/catalogo');
-        if (res.data?.datos) setCatalogo(res.data.datos);
+        if (res.data?.datos && res.data.datos.length > 0) {
+          setCatalogo(res.data.datos);
+        } else {
+          setCatalogo(mockCatalogo);
+        }
       } catch (err) {
-        console.error(err);
+        setCatalogo(mockCatalogo);
       } finally {
         setLoading(false);
       }

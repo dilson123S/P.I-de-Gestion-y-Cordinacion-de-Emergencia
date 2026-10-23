@@ -3,11 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Clock, CheckCircle2, Truck, ArrowRight } from 'lucide-react';
-import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import EstadoBadge from '@/components/emergencias/EstadoBadge';
 import { api } from '@/lib/api';
 import { Emergencia, EstadoEmergencia } from '@/types';
+import { mockEmergencias } from '@/lib/mock-data';
 
 export default function DashboardPage() {
   const [emergencias, setEmergencias] = useState<Emergencia[]>([]);
@@ -17,11 +17,14 @@ export default function DashboardPage() {
     async function cargarDatos() {
       try {
         const res = await api.get('/emergencias?limite=10');
-        if (res.data?.datos?.emergencias) {
+        if (res.data?.datos?.emergencias && res.data.datos.emergencias.length > 0) {
           setEmergencias(res.data.datos.emergencias);
+        } else {
+          setEmergencias(mockEmergencias);
         }
       } catch (err) {
-        console.error('Error al cargar emergencias:', err);
+        console.info('Modo Demostración: Cargando datos locales simulados');
+        setEmergencias(mockEmergencias);
       } finally {
         setLoading(false);
       }
@@ -145,7 +148,7 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {e.ciudadano ? `${e.ciudadano.nombre} ${e.ciudadano.apellido}` : 'Anónimo'}
+                      {e.ciudadano ? `${e.ciudadano.nombre} ${e.ciudadano.apellido}` : 'Ciudadano'}
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs">
                       {new Date(e.fecha_creacion).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

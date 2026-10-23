@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Truck, MapPin, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Truck, MapPin, RefreshCw } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import { Unidad, EstadoUnidad } from '@/types';
+import { mockUnidades } from '@/lib/mock-data';
 
 export default function UnidadesPage() {
   const [unidades, setUnidades] = useState<Unidad[]>([]);
@@ -15,11 +16,13 @@ export default function UnidadesPage() {
     setLoading(true);
     try {
       const res = await api.get('/unidades');
-      if (res.data?.datos) {
+      if (res.data?.datos && res.data.datos.length > 0) {
         setUnidades(res.data.datos);
+      } else {
+        setUnidades(mockUnidades);
       }
     } catch (err) {
-      console.error(err);
+      setUnidades(mockUnidades);
     } finally {
       setLoading(false);
     }

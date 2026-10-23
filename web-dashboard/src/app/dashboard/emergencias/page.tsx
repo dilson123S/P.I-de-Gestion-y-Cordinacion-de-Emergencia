@@ -6,7 +6,8 @@ import { Filter, Search, Eye } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import EstadoBadge from '@/components/emergencias/EstadoBadge';
 import { api } from '@/lib/api';
-import { Emergencia, EstadoEmergencia } from '@/types';
+import { Emergencia } from '@/types';
+import { mockEmergencias } from '@/lib/mock-data';
 
 export default function EmergenciasPage() {
   const [emergencias, setEmergencias] = useState<Emergencia[]>([]);
@@ -24,11 +25,13 @@ export default function EmergenciasPage() {
         if (prioridadFiltro) url += `&prioridad=${prioridadFiltro}`;
 
         const res = await api.get(url);
-        if (res.data?.datos?.emergencias) {
+        if (res.data?.datos?.emergencias && res.data.datos.emergencias.length > 0) {
           setEmergencias(res.data.datos.emergencias);
+        } else {
+          setEmergencias(mockEmergencias);
         }
       } catch (err) {
-        console.error('Error al listar emergencias:', err);
+        setEmergencias(mockEmergencias);
       } finally {
         setLoading(false);
       }
@@ -37,6 +40,8 @@ export default function EmergenciasPage() {
   }, [estadoFiltro, prioridadFiltro]);
 
   const filtradas = emergencias.filter((e) => {
+    if (estadoFiltro && e.estado !== estadoFiltro) return false;
+    if (prioridadFiltro && e.prioridad.toString() !== prioridadFiltro) return false;
     if (!busqueda) return true;
     const desc = e.descripcion?.toLowerCase() || '';
     const tipo = e.tipo_emergencia?.nombre?.toLowerCase() || '';

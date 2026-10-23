@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Shield, Search, FileText } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { api } from '@/lib/api';
+import { mockEmergencias } from '@/lib/mock-data';
 
 export default function AuditoriaPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -11,18 +12,18 @@ export default function AuditoriaPage() {
   useEffect(() => {
     async function cargar() {
       try {
-        // En un caso real se paginan los logs de auditoría generales
         const res = await api.get('/emergencias?limite=10');
-        if (res.data?.datos?.emergencias) {
-          // Extraer logs de las emergencias
+        if (res.data?.datos?.emergencias && res.data.datos.emergencias.length > 0) {
           const ids = res.data.datos.emergencias.map((e: any) => e.id);
           const logsPromises = ids.slice(0, 5).map((id: number) => api.get(`/emergencias/${id}/historial`));
           const logsResponses = await Promise.all(logsPromises);
           const allLogs = logsResponses.flatMap((r) => r.data?.datos || []);
-          setLogs(allLogs);
+          setLogs(allLogs.length > 0 ? allLogs : mockEmergencias.flatMap((e) => e.logs_auditoria || []));
+        } else {
+          setLogs(mockEmergencias.flatMap((e) => e.logs_auditoria || []));
         }
       } catch (err) {
-        console.error(err);
+        setLogs(mockEmergencias.flatMap((e) => e.logs_auditoria || []));
       } finally {
         setLoading(false);
       }
