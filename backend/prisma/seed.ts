@@ -1,5 +1,6 @@
 /**
  * Seed de la base de datos para la Plataforma de Gestión de Emergencias
+ * Ubicación y contexto: Cartagena de Indias, Bolívar, Colombia
  * Crea datos iniciales: admin, operadores, despachador, catálogo y unidades
  */
 
@@ -9,25 +10,23 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Iniciando seed de la base de datos...');
+  console.log('🌱 Iniciando seed de la base de datos para Cartagena de Indias...');
 
-  // Número de rondas para el hash de contraseñas
   const SALT_ROUNDS = 10;
 
   // =============================================
-  // 1. CREAR USUARIOS DEL SISTEMA
+  // 1. CREAR USUARIOS DEL SISTEMA (CARTAGENA)
   // =============================================
 
-  // Administrador principal
   const adminPassword = await bcrypt.hash('admin123', SALT_ROUNDS);
   const admin = await prisma.usuario.upsert({
     where: { email: 'admin@emergencias.gob' },
     update: {},
     create: {
       nombre: 'Administrador',
-      apellido: 'Sistema',
+      apellido: 'Central Cartagena',
       email: 'admin@emergencias.gob',
-      telefono: '+505 8888-0001',
+      telefono: '+57 300 888 0001',
       password_hash: adminPassword,
       rol: RolUsuario.ADMIN,
       activo: true,
@@ -35,7 +34,6 @@ async function main() {
   });
   console.log(`✅ Admin creado: ${admin.email}`);
 
-  // Operador 1 - Recibe y clasifica reportes
   const operadorPassword = await bcrypt.hash('operador123', SALT_ROUNDS);
   const operador1 = await prisma.usuario.upsert({
     where: { email: 'operador1@emergencias.gob' },
@@ -44,7 +42,7 @@ async function main() {
       nombre: 'María',
       apellido: 'López Hernández',
       email: 'operador1@emergencias.gob',
-      telefono: '+505 8888-0002',
+      telefono: '+57 300 888 0002',
       password_hash: operadorPassword,
       rol: RolUsuario.OPERADOR,
       activo: true,
@@ -52,7 +50,6 @@ async function main() {
   });
   console.log(`✅ Operador 1 creado: ${operador1.email}`);
 
-  // Operador 2
   const operador2 = await prisma.usuario.upsert({
     where: { email: 'operador2@emergencias.gob' },
     update: {},
@@ -60,7 +57,7 @@ async function main() {
       nombre: 'Carlos',
       apellido: 'Martínez Ruiz',
       email: 'operador2@emergencias.gob',
-      telefono: '+505 8888-0003',
+      telefono: '+57 300 888 0003',
       password_hash: operadorPassword,
       rol: RolUsuario.OPERADOR,
       activo: true,
@@ -68,7 +65,6 @@ async function main() {
   });
   console.log(`✅ Operador 2 creado: ${operador2.email}`);
 
-  // Despachador - Asigna unidades a las emergencias
   const despachadorPassword = await bcrypt.hash('despachador123', SALT_ROUNDS);
   const despachador = await prisma.usuario.upsert({
     where: { email: 'despachador1@emergencias.gob' },
@@ -77,7 +73,7 @@ async function main() {
       nombre: 'Ana',
       apellido: 'García Morales',
       email: 'despachador1@emergencias.gob',
-      telefono: '+505 8888-0004',
+      telefono: '+57 300 888 0004',
       password_hash: despachadorPassword,
       rol: RolUsuario.DESPACHADOR,
       activo: true,
@@ -85,7 +81,6 @@ async function main() {
   });
   console.log(`✅ Despachador creado: ${despachador.email}`);
 
-  // Personal de campo
   const campoPassword = await bcrypt.hash('campo123', SALT_ROUNDS);
   const personalCampo = await prisma.usuario.upsert({
     where: { email: 'campo1@emergencias.gob' },
@@ -94,7 +89,7 @@ async function main() {
       nombre: 'Roberto',
       apellido: 'Díaz Flores',
       email: 'campo1@emergencias.gob',
-      telefono: '+505 8888-0005',
+      telefono: '+57 300 888 0005',
       password_hash: campoPassword,
       rol: RolUsuario.PERSONAL_CAMPO,
       activo: true,
@@ -109,57 +104,57 @@ async function main() {
   const tiposEmergencia = [
     {
       codigo: 'INC',
-      nombre: 'Incendio',
-      descripcion: 'Incendio forestal, estructural o vehicular',
+      nombre: 'Incendio Estructural / Forestal',
+      descripcion: 'Incendio en vivienda, industria o zona de vegetación',
       prioridad_default: 1,
       icono: '🔥',
     },
     {
       codigo: 'ACC-TRAN',
       nombre: 'Accidente de Tránsito',
-      descripcion: 'Colisiones vehiculares, atropellos y volcaduras',
+      descripcion: 'Colisiones vehiculares en vías principales de Cartagena',
       prioridad_default: 2,
       icono: '🚗',
     },
     {
       codigo: 'EME-MED',
-      nombre: 'Emergencia Médica',
-      descripcion: 'Situaciones que requieren atención médica urgente',
+      nombre: 'Emergencia Médica / Triage',
+      descripcion: 'Situaciones de salud aguda que requieren traslado medicalizado',
       prioridad_default: 1,
       icono: '🏥',
     },
     {
       codigo: 'INUND',
-      nombre: 'Inundación',
-      descripcion: 'Inundaciones por lluvias, desbordamientos o mareas',
+      nombre: 'Inundación / Alerta Costera',
+      descripcion: 'Inundaciones por lluvias, marea de leva o desbordamiento de canales',
       prioridad_default: 2,
       icono: '🌊',
     },
     {
       codigo: 'DERR',
-      nombre: 'Derrumbe',
-      descripcion: 'Deslizamientos de tierra, derrumbes de estructuras',
+      nombre: 'Derrumbe / Colapso',
+      descripcion: 'Deslizamiento en La Popa o colapso de infraestructura histórica',
       prioridad_default: 1,
       icono: '🏚️',
     },
     {
       codigo: 'ROB',
-      nombre: 'Robo/Asalto',
-      descripcion: 'Robos a mano armada, asaltos y hurtos',
+      nombre: 'Seguridad Ciudadana / Hurto',
+      descripcion: 'Requerimientos de intervención policial inmediata',
       prioridad_default: 2,
       icono: '🚨',
     },
     {
       codigo: 'VIOL-DOM',
-      nombre: 'Violencia Doméstica',
-      descripcion: 'Casos de violencia intrafamiliar y doméstica',
+      nombre: 'Violencia Intrafamiliar',
+      descripcion: 'Casos de violencia de género y protección de menores',
       prioridad_default: 2,
       icono: '🏠',
     },
     {
       codigo: 'FUGA-GAS',
-      nombre: 'Fuga de Gas',
-      descripcion: 'Fugas de gas natural, propano u otros combustibles',
+      nombre: 'Fuga de Gas / Químicos',
+      descripcion: 'Fugas de GLP o químicos en zona turística, comercial o industrial',
       prioridad_default: 1,
       icono: '💨',
     },
@@ -175,33 +170,33 @@ async function main() {
   console.log(`✅ ${tiposEmergencia.length} tipos de emergencia creados`);
 
   // =============================================
-  // 3. UNIDADES DE RESPUESTA
+  // 3. UNIDADES DE RESPUESTA EN CARTAGENA
   // =============================================
 
   const unidades = [
     {
-      codigo: 'AMB-001',
-      tipo: 'Ambulancia',
-      placa: 'M-001-AMB',
+      codigo: 'AMB-01',
+      tipo: 'Ambulancia TAB - Hospital Universitario del Caribe',
+      placa: 'HUC-101',
       estado: EstadoUnidad.DISPONIBLE,
-      latitud_actual: 12.1364,
-      longitud_actual: -86.2514,
+      latitud_actual: 10.4165,
+      longitud_actual: -75.5122, // Zaragocilla
     },
     {
-      codigo: 'BOM-001',
-      tipo: 'Bomba',
-      placa: 'M-001-BOM',
+      codigo: 'BOM-01',
+      tipo: 'Autobomba Cuerpo de Bomberos - Estación Santa Lucía',
+      placa: 'BOM-001',
       estado: EstadoUnidad.DISPONIBLE,
-      latitud_actual: 12.1150,
-      longitud_actual: -86.2362,
+      latitud_actual: 10.4182,
+      longitud_actual: -75.5325, // Santa Lucía
     },
     {
-      codigo: 'PAT-001',
-      tipo: 'Patrulla',
-      placa: 'M-001-PAT',
+      codigo: 'PAT-01',
+      tipo: 'Patrulla Policía Metropolitana - CAI Manga',
+      placa: 'POL-305',
       estado: EstadoUnidad.DISPONIBLE,
-      latitud_actual: 12.1290,
-      longitud_actual: -86.2680,
+      latitud_actual: 10.4124,
+      longitud_actual: -75.5372, // Manga
     },
   ];
 
@@ -212,9 +207,9 @@ async function main() {
       create: unidad,
     });
   }
-  console.log(`✅ ${unidades.length} unidades de respuesta creadas`);
+  console.log(`✅ ${unidades.length} unidades de respuesta creadas para Cartagena`);
 
-  console.log('\n🎉 Seed completado exitosamente');
+  console.log('\n🎉 Seed completado exitosamente para Cartagena de Indias, Colombia');
 }
 
 main()

@@ -19,7 +19,7 @@ interface MapaInteractivoProps {
 export default function MapaInteractivo({
   emergencias,
   unidades = [],
-  centro = [12.1364, -86.2514], // Managua / Coordenadas por defecto
+  centro = [10.4110, -75.5300], // Cartagena de Indias, Colombia
   zoom = 13,
   emergenciaSeleccionadaId,
   onSeleccionarEmergencia,
@@ -246,9 +246,9 @@ export default function MapaInteractivo({
     actualizarCapas();
   }, [mapaListo, emergencias, unidades, filtroCapa, emergenciaSeleccionadaId]);
 
-  const centrarEnManagua = () => {
+  const centrarEnCartagena = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([12.1364, -86.2514], 13);
+      mapInstanceRef.current.setView([10.4110, -75.5300], 13);
     }
   };
 
@@ -283,8 +283,8 @@ export default function MapaInteractivo({
           </button>
           <div className="w-px h-4 bg-slate-200 mx-1" />
           <button
-            onClick={centrarEnManagua}
-            title="Centrar mapa en la capital"
+            onClick={centrarEnCartagena}
+            title="Centrar mapa en Cartagena de Indias"
             className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded"
           >
             <Navigation className="h-4 w-4" />

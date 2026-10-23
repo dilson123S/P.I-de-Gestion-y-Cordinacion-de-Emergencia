@@ -39,8 +39,8 @@ const MARKER_COLORS: Record<EstadoEmergencia, string> = {
  */
 export default function MapaEmergencias({
   emergencias,
-  latitudInicial = 18.4861,
-  longitudInicial = -69.9312,
+  latitudInicial = 10.4110,
+  longitudInicial = -75.5300,
   onMarkerPress,
   height = 300,
 }: MapaEmergenciasProps) {
