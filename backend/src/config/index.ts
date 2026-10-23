@@ -25,6 +25,11 @@ export const config = {
   /** URL de conexión a la base de datos (usada por Prisma directamente) */
   databaseUrl: process.env.DATABASE_URL || '',
 
+  /** Orígenes permitidos para CORS */
+  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+
   /** Tiempo de expiración de tokens JWT */
   jwtExpiresIn: '24h',
 } as const;
+
+export default config;
