@@ -5,7 +5,7 @@ import { obtenerToken, eliminarToken } from './auth';
  * Instancia de Axios preconfigurada para comunicarse con la API del backend.
  * Incluye interceptores para autenticación JWT y manejo de errores 401.
  */
-const api = axios.create({
+export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
   headers: {
     'Content-Type': 'application/json',
@@ -39,8 +39,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       eliminarToken();
-      /* Solo redirigir si estamos en el navegador */
-      if (typeof window !== 'undefined') {
+      /* Solo redirigir si estamos en el navegador y no estamos ya en /login */
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
     }

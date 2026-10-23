@@ -5,7 +5,6 @@ import api from '@/lib/api';
 import type {
   Emergencia,
   FiltrosEmergencia,
-  RespuestaPaginada,
 } from '@/types';
 
 /**
@@ -33,19 +32,25 @@ export function useEmergencias() {
       params.append('pagina', pagina.toString());
       params.append('limite', '20');
 
-      if (filtros.estado) params.append('estado', filtros.estado);
-      if (filtros.prioridad) params.append('prioridad', filtros.prioridad);
-      if (filtros.fecha_inicio)
-        params.append('fecha_inicio', filtros.fecha_inicio);
+      if (filtros.estado) params.append('estado', filtros.estado.toString());
+      if (filtros.prioridad) params.append('prioridad', filtros.prioridad.toString());
+      if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
       if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
       if (filtros.busqueda) params.append('busqueda', filtros.busqueda);
 
-      const respuesta = await api.get<RespuestaPaginada<Emergencia>>(
-        `/emergencias?${params.toString()}`
-      );
+      const respuesta = await api.get(`/emergencias?${params.toString()}`);
+      const payload = respuesta.data?.datos;
 
-      setEmergencias(respuesta.data.datos);
-      setTotal(respuesta.data.total);
+      if (payload?.emergencias && Array.isArray(payload.emergencias)) {
+        setEmergencias(payload.emergencias);
+        setTotal(payload.paginacion?.total ?? payload.emergencias.length);
+      } else if (Array.isArray(payload)) {
+        setEmergencias(payload);
+        setTotal(payload.length);
+      } else {
+        setEmergencias([]);
+        setTotal(0);
+      }
     } catch (err) {
       setError('Error al cargar las emergencias. Intente nuevamente.');
       console.error('Error cargando emergencias:', err);
@@ -61,14 +66,13 @@ export function useEmergencias() {
 
   /**
    * Obtiene una emergencia individual por su ID.
-   * @param id - Identificador único de la emergencia
    */
   const obtenerEmergencia = async (
     id: number | string
   ): Promise<Emergencia | null> => {
     try {
-      const respuesta = await api.get<Emergencia>(`/emergencias/${id}`);
-      return respuesta.data;
+      const respuesta = await api.get(`/emergencias/${id}`);
+      return respuesta.data?.datos || respuesta.data;
     } catch (err) {
       console.error('Error al obtener emergencia:', err);
       return null;
@@ -76,49 +80,40 @@ export function useEmergencias() {
   };
 
   /**
-   * Clasifica una emergencia asignándole tipo y prioridad.
-   * @param id - ID de la emergencia
-   * @param datos - Tipo de emergencia y prioridad asignada
+   * Clasifica una emergencia asignándole tipo y prioridad (RF-03).
    */
   const clasificarEmergencia = async (
     id: number | string,
-    datos: { id_tipo_emergencia: number; prioridad: string; notas_operador?: string }
+    datos: { id_tipo_emergencia: number; prioridad: number; notas_clasificacion?: string }
   ) => {
     const respuesta = await api.patch(`/emergencias/${id}/clasificar`, datos);
     await cargarEmergencias();
-    return respuesta.data;
+    return respuesta.data?.datos || respuesta.data;
   };
 
   /**
-   * Asigna una unidad de respuesta a una emergencia.
-   * @param id - ID de la emergencia
-   * @param idUnidad - ID de la unidad a asignar
+   * Asigna una unidad de respuesta a una emergencia (RF-05).
    */
-  const asignarUnidad = async (id: number | string, idUnidad: number) => {
+  const asignarUnidad = async (id: number | string, idUnidad: number, notas_despacho?: string) => {
     const respuesta = await api.patch(`/emergencias/${id}/asignar`, {
-      id_unidad_asignada: idUnidad,
+      id_unidad: idUnidad,
+      notas_despacho,
     });
     await cargarEmergencias();
-    return respuesta.data;
+    return respuesta.data?.datos || respuesta.data;
   };
 
   /**
-   * Cambia el estado de una emergencia (iniciar atención, cerrar, etc.).
-   * @param id - ID de la emergencia
-   * @param nuevoEstado - Nuevo estado a asignar
-   * @param notas - Notas opcionales (ej: notas de cierre)
+   * Cambia el estado de una emergencia.
    */
   const cambiarEstado = async (
     id: number | string,
-    nuevoEstado: string,
-    notas?: string
+    accion: 'iniciar-atencion' | 'cerrar',
+    datos?: Record<string, unknown>
   ) => {
-    const respuesta = await api.patch(`/emergencias/${id}/estado`, {
-      estado: nuevoEstado,
-      notas,
-    });
+    const respuesta = await api.patch(`/emergencias/${id}/${accion}`, datos);
     await cargarEmergencias();
-    return respuesta.data;
+    return respuesta.data?.datos || respuesta.data;
   };
 
   /**
@@ -145,3 +140,5 @@ export function useEmergencias() {
     cambiarEstado,
   };
 }
+
+export default useEmergencias;

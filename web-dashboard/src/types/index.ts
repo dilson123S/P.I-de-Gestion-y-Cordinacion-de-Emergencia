@@ -1,6 +1,6 @@
 /**
  * Definiciones de tipos TypeScript para el Sistema de Gestión de Emergencias.
- * Estas interfaces reflejan los modelos de Prisma del backend.
+ * Sincronizado con los modelos de Prisma y la API del backend.
  */
 
 /* ─── Enumeraciones ─── */
@@ -26,18 +26,9 @@ export enum RolUsuario {
 /** Estados operativos de una unidad de respuesta */
 export enum EstadoUnidad {
   DISPONIBLE = 'DISPONIBLE',
-  DESPACHADO = 'DESPACHADO',
-  EN_RUTA = 'EN_RUTA',
+  DESPACHADA = 'DESPACHADA',
   EN_ESCENA = 'EN_ESCENA',
-  FUERA_SERVICIO = 'FUERA_SERVICIO',
-}
-
-/** Niveles de prioridad para clasificar emergencias */
-export enum NivelPrioridad {
-  BAJA = 'BAJA',
-  MEDIA = 'MEDIA',
-  ALTA = 'ALTA',
-  CRITICA = 'CRITICA',
+  FUERA_DE_SERVICIO = 'FUERA_DE_SERVICIO',
 }
 
 /* ─── Interfaces de Modelos ─── */
@@ -48,88 +39,97 @@ export interface Usuario {
   nombre: string;
   apellido: string;
   email: string;
-  telefono: string | null;
+  telefono?: string | null;
   rol: RolUsuario;
   activo: boolean;
   fecha_creacion?: string;
   fecha_actualizacion?: string;
+  unidad_asignada?: Unidad | null;
 }
 
-/** Catálogo de tipos de emergencia configurables */
+/** Catálogo de tipos de emergencia configurables (RF-09) */
 export interface CatalogoTipoEmergencia {
   id: number;
   codigo: string;
   nombre: string;
-  descripcion: string | null;
-  prioridad_default: NivelPrioridad;
-  icono: string | null;
+  descripcion?: string | null;
+  prioridad_default: number;
+  icono?: string | null;
   activo: boolean;
 }
 
-/** Unidad de respuesta (ambulancia, bomberos, policía, etc.) */
+/** Unidad de respuesta (ambulancia, bomberos, patrulla, etc.) */
 export interface Unidad {
   id: number;
   codigo: string;
   tipo: string;
-  placa: string | null;
+  placa?: string | null;
   estado: EstadoUnidad;
-  latitud_actual: number | null;
-  longitud_actual: number | null;
+  latitud_actual?: number | null;
+  longitud_actual?: number | null;
+  id_personal?: number | null;
+  personal?: Usuario | null;
 }
 
-/** Registro completo de una emergencia con relaciones */
+/** Registro completo de una emergencia con actores y relaciones (RNF-07) */
 export interface Emergencia {
   id: number;
   descripcion: string;
-  direccion: string;
-  latitud: number | null;
-  longitud: number | null;
+  latitud: number;
+  longitud: number;
+  evidencia_url?: string | null;
+  fecha_creacion: string;
   estado: EstadoEmergencia;
-  prioridad: NivelPrioridad | null;
-  notas_operador: string | null;
-  notas_cierre: string | null;
+  prioridad: number;
+
+  /* Fases del flujo estricto */
+  notas_clasificacion?: string | null;
+  fecha_clasificacion?: string | null;
+
+  notas_despacho?: string | null;
+  fecha_asignacion?: string | null;
+
+  notas_atencion?: string | null;
+  fecha_inicio_atencion?: string | null;
+
+  resolucion?: string | null;
+  fecha_cierre?: string | null;
 
   /* Claves foráneas */
   id_ciudadano: number;
-  id_operador: number | null;
-  id_despachador: number | null;
-  id_unidad_asignada: number | null;
-  id_tipo_emergencia: number | null;
+  id_operador?: number | null;
+  id_despachador?: number | null;
+  id_unidad?: number | null;
+  id_tipo_emergencia?: number | null;
 
   /* Relaciones pobladas */
   ciudadano?: Usuario;
   operador?: Usuario | null;
   despachador?: Usuario | null;
-  unidad_asignada?: Unidad | null;
+  unidad?: Unidad | null;
   tipo_emergencia?: CatalogoTipoEmergencia | null;
-
-  /* Marcas de tiempo */
-  fecha_reporte: string;
-  fecha_clasificacion: string | null;
-  fecha_asignacion: string | null;
-  fecha_inicio_atencion: string | null;
-  fecha_cierre: string | null;
+  logs_auditoria?: LogAuditoria[];
 }
 
-/** Registro de auditoría que rastrea cada cambio en una emergencia */
+/** Registro de auditoría (RNF-09: Trazabilidad estricta) */
 export interface LogAuditoria {
   id: number;
   id_emergencia: number;
   id_usuario_accion: number;
   fecha: string;
   accion_realizada: string;
-  estado_anterior: EstadoEmergencia | null;
-  estado_nuevo: EstadoEmergencia | null;
-  datos_modificados: Record<string, unknown> | null;
+  estado_anterior?: EstadoEmergencia | null;
+  estado_nuevo?: EstadoEmergencia | null;
+  datos_modificados?: Record<string, unknown> | null;
+  ip_address?: string | null;
 
-  /* Relaciones pobladas */
-  usuario?: Usuario;
+  /* Relaciones */
+  usuario_accion?: Usuario;
   emergencia?: Emergencia;
 }
 
 /* ─── Tipos de Respuesta de API ─── */
 
-/** Respuesta estándar de la API con datos paginados */
 export interface RespuestaPaginada<T> {
   datos: T[];
   total: number;
@@ -138,25 +138,21 @@ export interface RespuestaPaginada<T> {
   total_paginas: number;
 }
 
-/** Respuesta de autenticación al iniciar sesión */
 export interface RespuestaAuth {
   token: string;
   usuario: Usuario;
 }
 
-/** Respuesta estándar de la API */
 export interface RespuestaAPI<T> {
   exito: boolean;
   mensaje?: string;
   datos: T;
 }
 
-/* ─── Tipos de Filtros ─── */
-
-/** Filtros aplicables a la lista de emergencias */
+/* ─── Filtros de búsqueda ─── */
 export interface FiltrosEmergencia {
-  estado?: EstadoEmergencia;
-  prioridad?: NivelPrioridad;
+  estado?: EstadoEmergencia | string;
+  prioridad?: number | string;
   fecha_inicio?: string;
   fecha_fin?: string;
   busqueda?: string;

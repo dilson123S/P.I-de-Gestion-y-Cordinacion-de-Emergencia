@@ -7,12 +7,15 @@ import { cn } from '@/lib/utils';
 /* ─── Interfaz de propiedades del modal ─── */
 
 interface ModalProps {
-  /** Controla la visibilidad del modal */
-  abierto: boolean;
-  /** Función para cerrar el modal */
-  onCerrar: () => void;
-  /** Título del encabezado del modal */
-  titulo: string;
+  /** Controla la visibilidad del modal (soporta 'abierto' o 'isOpen') */
+  abierto?: boolean;
+  isOpen?: boolean;
+  /** Función para cerrar el modal (soporta 'onCerrar' o 'onClose') */
+  onCerrar?: () => void;
+  onClose?: () => void;
+  /** Título del encabezado del modal (soporta 'titulo' o 'title') */
+  titulo?: string;
+  title?: string;
   /** Contenido del modal */
   children: ReactNode;
   /** Clase CSS adicional para el contenedor */
@@ -35,21 +38,27 @@ const tamanos = {
  */
 export default function Modal({
   abierto,
+  isOpen,
   onCerrar,
+  onClose,
   titulo,
+  title,
   children,
   className,
   size = 'md',
 }: ModalProps) {
+  const visible = isOpen !== undefined ? isOpen : (abierto ?? false);
+  const handleClose = onClose || onCerrar || (() => {});
+  const displayTitle = title || titulo || '';
+
   /** Cierra el modal al presionar la tecla Escape */
   useEffect(() => {
     const manejarEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar();
+      if (e.key === 'Escape') handleClose();
     };
 
-    if (abierto) {
+    if (visible) {
       document.addEventListener('keydown', manejarEscape);
-      /* Prevenir scroll del body mientras el modal está abierto */
       document.body.style.overflow = 'hidden';
     }
 
@@ -57,16 +66,16 @@ export default function Modal({
       document.removeEventListener('keydown', manejarEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [abierto, onCerrar]);
+  }, [visible, handleClose]);
 
-  if (!abierto) return null;
+  if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay oscuro — clic para cerrar */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onCerrar}
+        onClick={handleClose}
       />
 
       {/* Contenido del modal */}
@@ -80,10 +89,10 @@ export default function Modal({
         {/* Encabezado con título y botón de cerrar */}
         <div className="flex items-center justify-between border-b border-secondary-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-secondary-900">
-            {titulo}
+            {displayTitle}
           </h2>
           <button
-            onClick={onCerrar}
+            onClick={handleClose}
             className="rounded-lg p-1 text-secondary-400 transition-colors hover:bg-secondary-100 hover:text-secondary-600"
             aria-label="Cerrar modal"
           >
