@@ -92,7 +92,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           const tokenDemo = 'jwt_demo_token_sigem';
           guardarToken(tokenDemo);
-          guardarUsuario(usuarioDemo);
+          guardarUsuario(usuarioDemo as unknown as Record<string, unknown>);
           setUsuario(usuarioDemo);
           router.push('/dashboard');
           return;

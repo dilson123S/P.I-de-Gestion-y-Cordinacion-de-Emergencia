@@ -2,7 +2,17 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
+
+const MapaInteractivo = dynamic(() => import('@/components/mapa/MapaInteractivo'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-80 bg-slate-100 flex items-center justify-center rounded-xl border border-slate-200">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+    </div>
+  ),
+});
 import {
   ArrowLeft,
   MapPin,
@@ -305,6 +315,25 @@ export default function DetalleEmergenciaPage() {
                   ) : (
                     <p className="mt-1 text-xs text-slate-400">Sin archivo multimedia adjunto</p>
                   )}
+                </div>
+              </div>
+
+              {/* Mapa Interactivo Incrustado con la posición del caso */}
+              <div className="pt-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-2">
+                  <MapPin className="h-3.5 w-3.5 text-blue-600" />
+                  Localización y Posición de Unidad en Tiempo Real
+                </label>
+                <div className="rounded-xl overflow-hidden border border-slate-200">
+                  <MapaInteractivo
+                    emergencias={[emergencia]}
+                    unidades={emergencia.unidad ? [emergencia.unidad] : []}
+                    centro={[emergencia.latitud, emergencia.longitud]}
+                    zoom={15}
+                    emergenciaSeleccionadaId={emergencia.id}
+                    altura="320px"
+                    mostrarControles={false}
+                  />
                 </div>
               </div>
 

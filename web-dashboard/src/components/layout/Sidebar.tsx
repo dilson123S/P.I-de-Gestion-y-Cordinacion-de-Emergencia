@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   AlertTriangle,
+  Map,
   Truck,
   Users,
   BookOpen,
@@ -42,6 +43,11 @@ const elementosMenu: ElementoMenu[] = [
     etiqueta: 'Emergencias',
     ruta: '/dashboard/emergencias',
     icono: AlertTriangle,
+  },
+  {
+    etiqueta: 'Mapa en Vivo',
+    ruta: '/dashboard/mapa',
+    icono: Map,
   },
   {
     etiqueta: 'Unidades',
