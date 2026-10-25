@@ -6,6 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { emergenciasService } from './emergencias.service';
+import { emitSosAlert, emitCaseUpdate } from '../../socket';
 import { successResponse, errorResponse } from '../../utils/api-response';
 import { EstadoEmergencia } from '@prisma/client';
 
@@ -18,7 +19,8 @@ export class EmergenciasController {
     try {
       const idCiudadano = req.usuario!.id;
       const emergencia = await emergenciasService.crearReporte(req.body, idCiudadano);
-      successResponse(res, emergencia, 'Emergencia reportada exitosamente', 201);
+      emitSosAlert(emergencia);
+    successResponse(res, emergencia, 'Emergencia reportada exitosamente', 201);
     } catch (error: any) {
       if (error.statusCode) {
         errorResponse(res, error.message, error.statusCode);
@@ -38,6 +40,7 @@ export class EmergenciasController {
       const idEmergencia = parseInt(req.params.id, 10);
       const idOperador = req.usuario!.id;
       const emergencia = await emergenciasService.clasificarReporte(idEmergencia, req.body, idOperador);
+      emitCaseUpdate(emergencia);
       successResponse(res, emergencia, 'Emergencia clasificada exitosamente');
     } catch (error: any) {
       if (error.statusCode) {
@@ -58,6 +61,7 @@ export class EmergenciasController {
       const idEmergencia = parseInt(req.params.id, 10);
       const idDespachador = req.usuario!.id;
       const emergencia = await emergenciasService.asignarUnidad(idEmergencia, req.body, idDespachador);
+      emitCaseUpdate(emergencia);
       successResponse(res, emergencia, 'Unidad asignada exitosamente');
     } catch (error: any) {
       if (error.statusCode) {
@@ -78,6 +82,7 @@ export class EmergenciasController {
       const idEmergencia = parseInt(req.params.id, 10);
       const idUsuario = req.usuario!.id;
       const emergencia = await emergenciasService.iniciarAtencion(idEmergencia, req.body, idUsuario);
+      emitCaseUpdate(emergencia);
       successResponse(res, emergencia, 'Atención de emergencia iniciada en campo');
     } catch (error: any) {
       if (error.statusCode) {
@@ -98,6 +103,7 @@ export class EmergenciasController {
       const idEmergencia = parseInt(req.params.id, 10);
       const idUsuario = req.usuario!.id;
       const emergencia = await emergenciasService.cerrarEmergencia(idEmergencia, req.body, idUsuario);
+      emitCaseUpdate(emergencia);
       successResponse(res, emergencia, 'Emergencia cerrada exitosamente y unidad liberada');
     } catch (error: any) {
       if (error.statusCode) {
