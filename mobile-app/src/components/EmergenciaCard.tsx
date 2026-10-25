@@ -1,13 +1,13 @@
 /**
- * Componente EmergenciaCard - Tarjeta resumen de una emergencia.
- * Muestra la descripción (truncada), estado, categoría y fecha
- * de una emergencia en un formato compacto y presionable.
+ * Componente EmergenciaCard - Tarjeta moderna resumen de una emergencia.
+ * Muestra el estado con insignia, tipo de incidente, caso #,
+ * descripción, unidad asignada, ubicación y fecha en formato intuitivo.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Emergencia } from '../types';
+import { Emergencia, EstadoEmergencia } from '../types';
 import EstadoBadge from './EstadoBadge';
 import { Colors, FontSize, Spacing, BorderRadius, Shadows } from '../constants/theme';
 
@@ -18,138 +18,188 @@ interface EmergenciaCardProps {
   onPress?: () => void;
 }
 
-/**
- * Tarjeta que presenta un resumen visual de una emergencia.
- * Incluye insignia de estado, descripción truncada, fecha
- * y un indicador de categoría si está disponible.
- */
-export default function EmergenciaCard({ emergencia, onPress }: EmergenciaCardProps) {
-  /** Formatea la fecha de creación de manera legible */
-  const fechaFormateada = new Date(emergencia.createdAt).toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+/** Color lateral según el estado */
+const ACCENT_COLORS: Record<EstadoEmergencia, string> = {
+  [EstadoEmergencia.REPORTADO]: Colors.warning,
+  [EstadoEmergencia.CLASIFICADO]: Colors.primaryLight,
+  [EstadoEmergencia.ASIGNADO]: Colors.purple,
+  [EstadoEmergencia.EN_ATENCION]: Colors.orange,
+  [EstadoEmergencia.CERRADO]: Colors.success,
+};
 
-  /** Trunca la descripción si excede el límite de caracteres */
-  const descripcionCorta =
-    emergencia.descripcion.length > 100
-      ? emergencia.descripcion.substring(0, 100) + '...'
-      : emergencia.descripcion;
+export default function EmergenciaCard({ emergencia, onPress }: EmergenciaCardProps) {
+  const fechaOrigen = emergencia.fecha_creacion || emergencia.createdAt;
+  const fechaFormateada = fechaOrigen
+    ? new Date(fechaOrigen).toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Reciente';
+
+  const accentColor = ACCENT_COLORS[emergencia.estado] || Colors.primary;
+  const tipoNombre = emergencia.tipo_emergencia?.nombre || emergencia.categoria || 'Emergencia';
+  const tipoIcono = emergencia.tipo_emergencia?.icono || '🚨';
 
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.75}
       accessibilityRole="button"
-      accessibilityLabel={`Emergencia: ${descripcionCorta}`}
+      accessibilityLabel={`Caso número ${emergencia.id}: ${emergencia.descripcion}`}
     >
-      {/* Cabecera: estado y categoría */}
-      <View style={styles.header}>
-        <EstadoBadge estado={emergencia.estado} />
-        {emergencia.categoria && (
-          <Text style={styles.categoria}>
-            {emergencia.categoria.replace(/_/g, ' ')}
-          </Text>
+      {/* Barra de acento visual según estado */}
+      <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
+
+      <View style={styles.cardContent}>
+        {/* Cabecera: ID, Tipo y Badge de Estado */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.idBadge}>
+              <Text style={styles.idText}>#{emergencia.id}</Text>
+            </View>
+            <Text style={styles.tipoText} numberOfLines={1}>
+              {tipoIcono} {tipoNombre}
+            </Text>
+          </View>
+          <EstadoBadge estado={emergencia.estado} size="sm" />
+        </View>
+
+        {/* Descripción */}
+        <Text style={styles.descripcion} numberOfLines={2}>
+          {emergencia.descripcion}
+        </Text>
+
+        {/* Info de Despacho si tiene unidad */}
+        {emergencia.unidad && (
+          <View style={styles.unidadBanner}>
+            <Ionicons name="shield" size={14} color={Colors.purple} />
+            <Text style={styles.unidadTexto} numberOfLines={1}>
+              Despachada: {emergencia.unidad.tipo} {emergencia.unidad.codigo || emergencia.unidad.nombre || ''}
+            </Text>
+          </View>
         )}
+
+        {/* Pie con Metadata */}
+        <View style={styles.footer}>
+          <View style={styles.metaItem}>
+            <Ionicons name="time-outline" size={13} color={Colors.textSecondary} />
+            <Text style={styles.metaText}>{fechaFormateada}</Text>
+          </View>
+
+          <View style={styles.metaItem}>
+            <Ionicons name="location-sharp" size={13} color={Colors.primaryLight} />
+            <Text style={styles.metaText}>
+              {Number(emergencia.latitud).toFixed(3)}, {Number(emergencia.longitud).toFixed(3)}
+            </Text>
+          </View>
+
+          {emergencia.evidencia_url && (
+            <View style={styles.metaItem}>
+              <Ionicons name="image-outline" size={13} color={Colors.success} />
+              <Text style={[styles.metaText, { color: Colors.success, fontWeight: '600' }]}>Foto</Text>
+            </View>
+          )}
+
+          {onPress && (
+            <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} style={styles.chevron} />
+          )}
+        </View>
       </View>
-
-      {/* Descripción de la emergencia */}
-      <Text style={styles.descripcion} numberOfLines={3}>
-        {descripcionCorta}
-      </Text>
-
-      {/* Pie: fecha e indicador de ubicación */}
-      <View style={styles.footer}>
-        <View style={styles.fechaContainer}>
-          <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
-          <Text style={styles.fecha}>{fechaFormateada}</Text>
-        </View>
-        <View style={styles.ubicacionContainer}>
-          <Ionicons name="location-outline" size={14} color={Colors.primaryLight} />
-          <Text style={styles.ubicacion}>
-            {emergencia.latitud.toFixed(4)}, {emergencia.longitud.toFixed(4)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Indicador de evidencia adjunta */}
-      {emergencia.evidencia_url && (
-        <View style={styles.evidenciaIndicador}>
-          <Ionicons name="camera-outline" size={14} color={Colors.textSecondary} />
-          <Text style={styles.evidenciaTexto}>Evidencia adjunta</Text>
-        </View>
-      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#ffffff',
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.sm,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.md,
+    borderColor: '#e2e8f0',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    ...Shadows.sm,
+  },
+  accentStrip: {
+    width: 5,
+  },
+  cardContent: {
+    flex: 1,
+    padding: Spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.xs + 2,
   },
-  categoria: {
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+    flex: 1,
+    marginRight: Spacing.xs,
+  },
+  idBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  idText: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    textTransform: 'capitalize',
-    fontWeight: '500',
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  tipoText: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.text,
+    flexShrink: 1,
   },
   descripcion: {
-    fontSize: FontSize.md,
-    color: Colors.text,
-    lineHeight: 20,
-    marginBottom: Spacing.md,
+    fontSize: FontSize.sm,
+    color: '#334155',
+    lineHeight: 19,
+    marginBottom: Spacing.sm,
+  },
+  unidadBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f3ff',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.sm,
+    gap: 6,
+  },
+  unidadTexto: {
+    fontSize: FontSize.xs,
+    color: '#5b21b6',
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  fechaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  fecha: {
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-  },
-  ubicacionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ubicacion: {
-    fontSize: FontSize.xs,
-    color: Colors.primaryLight,
-  },
-  evidenciaIndicador: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
+    justifyContent: 'flex-start',
+    gap: Spacing.md,
+    paddingTop: Spacing.xs + 2,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: '#f1f5f9',
   },
-  evidenciaTexto: {
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  metaText: {
     fontSize: FontSize.xs,
     color: Colors.textSecondary,
+  },
+  chevron: {
+    marginLeft: 'auto',
   },
 });

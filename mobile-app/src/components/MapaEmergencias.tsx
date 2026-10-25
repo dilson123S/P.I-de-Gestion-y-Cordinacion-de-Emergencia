@@ -5,14 +5,14 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, DimensionValue } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { Emergencia, EstadoEmergencia } from '../types';
 import { Colors, BorderRadius, Spacing, FontSize } from '../constants/theme';
 
 interface MapaEmergenciasProps {
   /** Lista de emergencias a mostrar en el mapa */
-  emergencias: Emergencia[];
+  emergencias?: Emergencia[];
   /** Latitud inicial del centro del mapa */
   latitudInicial?: number;
   /** Longitud inicial del centro del mapa */
@@ -20,7 +20,7 @@ interface MapaEmergenciasProps {
   /** Callback al presionar un marcador */
   onMarkerPress?: (emergencia: Emergencia) => void;
   /** Altura del contenedor del mapa */
-  height?: number;
+  height?: DimensionValue;
 }
 
 /** Mapeo de colores de marcador por estado de emergencia */
@@ -38,18 +38,22 @@ const MARKER_COLORS: Record<EstadoEmergencia, string> = {
  * Si no hay coordenadas iniciales, centra en una ubicación por defecto.
  */
 export default function MapaEmergencias({
-  emergencias,
-  latitudInicial = 10.4110,
-  longitudInicial = -75.5300,
+  emergencias = [],
+  latitudInicial = 10.411,
+  longitudInicial = -75.53,
   onMarkerPress,
   height = 300,
 }: MapaEmergenciasProps) {
-  /** Región inicial del mapa centrada en las coordenadas proporcionadas */
+  // Centro inicial del mapa
+  const primerPunto = emergencias.find(
+    (e) => typeof e.latitud === 'number' && typeof e.longitud === 'number'
+  );
+
   const region = {
-    latitude: latitudInicial,
-    longitude: longitudInicial,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitude: primerPunto ? Number(primerPunto.latitud) : latitudInicial,
+    longitude: primerPunto ? Number(primerPunto.longitud) : longitudInicial,
+    latitudeDelta: 0.06,
+    longitudeDelta: 0.06,
   };
 
   return (
@@ -60,19 +64,21 @@ export default function MapaEmergencias({
         showsUserLocation
         showsMyLocationButton
       >
-        {emergencias.map((emergencia) => (
-          <Marker
-            key={emergencia.id}
-            coordinate={{
-              latitude: emergencia.latitud,
-              longitude: emergencia.longitud,
-            }}
-            title={emergencia.descripcion.substring(0, 50)}
-            description={`Estado: ${emergencia.estado}`}
-            pinColor={MARKER_COLORS[emergencia.estado] || Colors.danger}
-            onPress={() => onMarkerPress?.(emergencia)}
-          />
-        ))}
+        {emergencias
+          .filter((e) => typeof e.latitud === 'number' && typeof e.longitud === 'number')
+          .map((emergencia) => (
+            <Marker
+              key={emergencia.id.toString()}
+              coordinate={{
+                latitude: Number(emergencia.latitud),
+                longitude: Number(emergencia.longitud),
+              }}
+              title={`Caso #${emergencia.id}: ${emergencia.tipo_emergencia?.nombre || 'Emergencia'}`}
+              description={emergencia.descripcion.substring(0, 60)}
+              pinColor={MARKER_COLORS[emergencia.estado] || Colors.danger}
+              onPress={() => onMarkerPress?.(emergencia)}
+            />
+          ))}
       </MapView>
 
       {/* Leyenda de colores */}
@@ -80,9 +86,7 @@ export default function MapaEmergencias({
         {Object.entries(MARKER_COLORS).map(([estado, color]) => (
           <View key={estado} style={styles.leyendaItem}>
             <View style={[styles.leyendaDot, { backgroundColor: color }]} />
-            <Text style={styles.leyendaText}>
-              {estado.replace(/_/g, ' ')}
-            </Text>
+            <Text style={styles.leyendaText}>{estado.replace(/_/g, ' ')}</Text>
           </View>
         ))}
       </View>

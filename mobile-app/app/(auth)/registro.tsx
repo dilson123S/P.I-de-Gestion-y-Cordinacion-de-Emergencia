@@ -8,10 +8,13 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/hooks/useAuth';
-import { Colors, Spacing, FontSize, BorderRadius } from '../../src/constants/theme';
+import { Colors, Spacing, FontSize, BorderRadius, Shadows } from '../../src/constants/theme';
 import { RolUsuario } from '../../src/types';
 
 export default function RegistroScreen() {
@@ -22,153 +25,267 @@ export default function RegistroScreen() {
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
   const [password, setPassword] = useState('');
+  const [mostrarPassword, setMostrarPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
 
   const handleRegistro = async () => {
-    if (!nombre || !apellido || !email || !password) {
-      Alert.alert('Campos requeridos', 'Por favor llena todos los campos obligatorios');
+    if (!nombre.trim() || !apellido.trim() || !email.trim() || !password) {
+      Alert.alert('Campos requeridos', 'Por favor llena todos los campos obligatorios (*).');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Contraseña débil', 'La contraseña debe tener al menos 6 caracteres.');
       return;
     }
 
     setCargando(true);
     try {
       await registrar({
-        nombre,
-        apellido,
-        email,
-        telefono,
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        email: email.trim(),
+        telefono: telefono.trim() || undefined,
         password,
         rol: RolUsuario.CIUDADANO,
       });
-      Alert.alert('Éxito', 'Registro completado. Ahora puedes iniciar sesión.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login') },
-      ]);
+
+      Alert.alert(
+        'Registro Exitoso',
+        'Tu cuenta ha sido creada correctamente en el sistema SIGEM. Ya puedes acceder al canal de emergencias.',
+        [{ text: 'Comenzar', onPress: () => router.replace('/(auth)/login') }]
+      );
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.mensaje || 'No se pudo completar el registro');
+      const mensaje =
+        err?.response?.data?.mensaje ||
+        err?.response?.data?.errores ||
+        err.message ||
+        'No se pudo completar el registro.';
+      Alert.alert('Error en el registro', typeof mensaje === 'string' ? mensaje : JSON.stringify(mensaje));
     } finally {
       setCargando(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <Text style={styles.title}>Registro de Ciudadano</Text>
-      <Text style={styles.subtitle}>Crea tu cuenta para reportar emergencias en tiempo real (RF-01)</Text>
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Nombre *</Text>
-        <TextInput style={styles.input} value={nombre} onChangeText={setNombre} placeholder="Tu nombre" />
-
-        <Text style={styles.label}>Apellido *</Text>
-        <TextInput style={styles.input} value={apellido} onChangeText={setApellido} placeholder="Tu apellido" />
-
-        <Text style={styles.label}>Correo Electrónico *</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="correo@ejemplo.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <Text style={styles.label}>Teléfono de Contacto</Text>
-        <TextInput
-          style={styles.input}
-          value={telefono}
-          onChangeText={setTelefono}
-          placeholder="+505 8888-0000"
-          keyboardType="phone-pad"
-        />
-
-        <Text style={styles.label}>Contraseña *</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Al menos 6 caracteres"
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.button, cargando && styles.buttonDisabled]}
-          onPress={handleRegistro}
-          disabled={cargando}
-        >
-          {cargando ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Crear Cuenta</Text>}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Botón Volver */}
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={20} color={Colors.text} />
+          <Text style={styles.backText}>Volver al Login</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.linkButton} onPress={() => router.back()}>
-          <Text style={styles.linkText}>¿Ya tienes cuenta? Inicia sesión</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        <Text style={styles.title}>Registro Ciudadano</Text>
+        <Text style={styles.subtitle}>
+          Crea tu cuenta para reportar incidentes en tiempo real con geolocalización y fotos (RF-01)
+        </Text>
+
+        <View style={styles.formCard}>
+          <Text style={styles.label}>Nombre *</Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="person-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={nombre}
+              onChangeText={setNombre}
+              placeholder="Ej. Juan"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <Text style={styles.label}>Apellido *</Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="person-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={apellido}
+              onChangeText={setApellido}
+              placeholder="Ej. Pérez"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <Text style={styles.label}>Correo Electrónico *</Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="correo@ejemplo.com"
+              placeholderTextColor="#94a3b8"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <Text style={styles.label}>Teléfono de Contacto (Para llamadas de rescate)</Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="call-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={telefono}
+              onChangeText={setTelefono}
+              placeholder="+505 8888-0000"
+              placeholderTextColor="#94a3b8"
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <Text style={styles.label}>Contraseña *</Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Al menos 6 caracteres"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry={!mostrarPassword}
+            />
+            <TouchableOpacity
+              onPress={() => setMostrarPassword(!mostrarPassword)}
+              style={styles.eyeBtn}
+            >
+              <Ionicons
+                name={mostrarPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.disclaimerBox}>
+            <Ionicons name="shield-checkmark" size={16} color={Colors.primary} />
+            <Text style={styles.disclaimerText}>
+              Tus datos personales y de ubicación están protegidos y solo se emplean para responder a tus llamadas de auxilio.
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.button, cargando && styles.buttonDisabled]}
+            onPress={handleRegistro}
+            disabled={cargando}
+            activeOpacity={0.85}
+          >
+            {cargando ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Crear Mi Cuenta</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   scroll: {
     flexGrow: 1,
-    padding: Spacing.xl,
-    justifyContent: 'center',
-    backgroundColor: Colors.background,
+    padding: Spacing.lg,
+    paddingTop: Spacing.xl,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: Spacing.md,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: FontSize.sm,
+    color: Colors.text,
+    fontWeight: '600',
   },
   title: {
     fontSize: FontSize.xxl,
-    fontWeight: 'bold',
+    fontWeight: '900',
     color: Colors.text,
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs + 1,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
-    marginTop: Spacing.xs,
+    marginBottom: Spacing.lg,
+    marginTop: 4,
+    lineHeight: 18,
   },
-  form: {
-    backgroundColor: '#fff',
+  formCard: {
+    backgroundColor: '#ffffff',
     padding: Spacing.lg,
     borderRadius: BorderRadius.lg,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...Shadows.sm,
   },
   label: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
+    fontSize: FontSize.xs + 1,
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: Spacing.xs,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs + 2,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: Spacing.sm + 2,
+    height: 48,
+    marginBottom: Spacing.sm,
+  },
+  inputIcon: {
+    marginRight: Spacing.xs + 2,
   },
   input: {
-    borderWidth: 1,
-    borderColor: Colors.border,
+    flex: 1,
+    fontSize: FontSize.sm + 1,
+    color: Colors.text,
+  },
+  eyeBtn: {
+    padding: Spacing.xs,
+  },
+  disclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#eff6ff',
+    padding: Spacing.sm + 2,
     borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    fontSize: FontSize.md,
-    backgroundColor: '#f8fafc',
+    marginVertical: Spacing.sm,
+  },
+  disclaimerText: {
+    fontSize: FontSize.xs - 1,
+    color: Colors.primary,
+    flex: 1,
+    lineHeight: 16,
   },
   button: {
     backgroundColor: Colors.primary,
     borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
+    ...Shadows.sm,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: FontSize.md,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    marginTop: Spacing.md,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: Colors.primary,
-    fontSize: FontSize.sm,
-    fontWeight: '500',
+    color: '#ffffff',
+    fontSize: FontSize.sm + 1,
+    fontWeight: '800',
   },
 });

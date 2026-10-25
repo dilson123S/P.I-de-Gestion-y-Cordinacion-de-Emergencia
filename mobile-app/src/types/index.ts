@@ -1,25 +1,38 @@
 /**
- * Definiciones de tipos e interfaces para la aplicación SIGEM - Emergencias.
- * Estos tipos reflejan los modelos del backend y se comparten
- * con la aplicación web para mantener consistencia.
+ * Definiciones de tipos TypeScript para la aplicación SIGEM Móvil.
+ * Sincronizado con los modelos de Prisma y la API del backend.
  */
 
-/** Roles disponibles en el sistema */
-export enum Rol {
-  CIUDADANO = 'CIUDADANO',
-  OPERADOR = 'OPERADOR',
-  COORDINADOR = 'COORDINADOR',
-  PERSONAL_CAMPO = 'PERSONAL_CAMPO',
-  ADMIN = 'ADMIN',
-}
+/* ─── Enumeraciones ─── */
 
-/** Estados posibles de una emergencia */
+/** Estados posibles de una emergencia durante su ciclo de vida */
 export enum EstadoEmergencia {
   REPORTADO = 'REPORTADO',
   CLASIFICADO = 'CLASIFICADO',
   ASIGNADO = 'ASIGNADO',
   EN_ATENCION = 'EN_ATENCION',
   CERRADO = 'CERRADO',
+}
+
+/** Roles de usuario dentro del sistema */
+export enum RolUsuario {
+  CIUDADANO = 'CIUDADANO',
+  OPERADOR = 'OPERADOR',
+  DESPACHADOR = 'DESPACHADOR',
+  PERSONAL_CAMPO = 'PERSONAL_CAMPO',
+  ADMIN = 'ADMIN',
+}
+
+// Alias para compatibilidad con código existente
+export type Rol = RolUsuario;
+export const Rol = RolUsuario;
+
+/** Estados operativos de una unidad de respuesta */
+export enum EstadoUnidad {
+  DISPONIBLE = 'DISPONIBLE',
+  DESPACHADA = 'DESPACHADA',
+  EN_ESCENA = 'EN_ESCENA',
+  FUERA_DE_SERVICIO = 'FUERA_DE_SERVICIO',
 }
 
 /** Niveles de prioridad de una emergencia */
@@ -41,83 +54,142 @@ export enum CategoriaEmergencia {
   OTRO = 'OTRO',
 }
 
-/** Modelo de usuario del sistema */
+/* ─── Interfaces de Modelos ─── */
+
+/** Representa un usuario registrado en el sistema */
 export interface Usuario {
-  id: string;
+  id: number | string;
   nombre: string;
   apellido: string;
   email: string;
-  telefono: string;
-  rol: Rol;
-  activo: boolean;
-  unidadId?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  telefono?: string | null;
+  rol: RolUsuario;
+  activo?: boolean;
+  fecha_creacion?: string;
+  fecha_actualizacion?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  unidadId?: string | number | null;
+  unidad_asignada?: Unidad | null;
 }
 
-/** Modelo principal de emergencia */
+/** Catálogo de tipos de emergencia configurables (RF-09) */
+export interface CatalogoTipoEmergencia {
+  id: number;
+  codigo?: string;
+  nombre: string;
+  descripcion?: string | null;
+  prioridad_default?: number;
+  icono?: string | null;
+  activo?: boolean;
+}
+
+/** Unidad de respuesta (ambulancia, bomberos, patrulla, etc.) */
+export interface Unidad {
+  id: number | string;
+  codigo?: string;
+  nombre?: string;
+  tipo: string;
+  placa?: string | null;
+  estado?: EstadoUnidad;
+  disponible?: boolean;
+  latitud_actual?: number | null;
+  longitud_actual?: number | null;
+  latitud?: number | null;
+  longitud?: number | null;
+  id_personal?: number | null;
+  personal?: Usuario | null;
+}
+
+export type UnidadEmergencia = Unidad;
+
+/** Registro de auditoría (RNF-09: Trazabilidad estricta) */
+export interface LogAuditoria {
+  id: number | string;
+  id_emergencia: number | string;
+  id_usuario_accion: number | string;
+  fecha: string;
+  accion_realizada: string;
+  estado_anterior?: EstadoEmergencia | null;
+  estado_nuevo?: EstadoEmergencia | null;
+  datos_modificados?: Record<string, unknown> | null;
+  ip_address?: string | null;
+  usuario_accion?: Usuario;
+  comentario?: string | null;
+  createdAt?: string;
+}
+
+export type HistorialEstado = LogAuditoria;
+
+/** Registro completo de una emergencia con actores y relaciones (RNF-07) */
 export interface Emergencia {
-  id: string;
+  id: number | string;
   descripcion: string;
   latitud: number;
   longitud: number;
-  estado: EstadoEmergencia;
-  prioridad?: Prioridad | null;
-  categoria?: CategoriaEmergencia | null;
   evidencia_url?: string | null;
-  reporteroId: string;
+  fecha_creacion?: string;
+  createdAt?: string;
+  fecha_actualizacion?: string;
+  updatedAt?: string;
+  estado: EstadoEmergencia;
+  prioridad?: number | Prioridad | null;
+  categoria?: CategoriaEmergencia | string | null;
+
+  /* Fases del flujo estricto */
+  notas_clasificacion?: string | null;
+  fecha_clasificacion?: string | null;
+
+  notas_despacho?: string | null;
+  fecha_asignacion?: string | null;
+
+  notas_atencion?: string | null;
+  fecha_inicio_atencion?: string | null;
+
+  resolucion?: string | null;
+  fecha_cierre?: string | null;
+
+  /* Claves foráneas y actores */
+  id_ciudadano?: number;
+  reporteroId?: string | number;
+  id_operador?: number | null;
+  id_despachador?: number | null;
+  id_unidad?: number | null;
+  unidadId?: string | number | null;
+  id_tipo_emergencia?: number | null;
+
+  /* Relaciones */
+  ciudadano?: Usuario;
   reportero?: Usuario;
-  unidadId?: string | null;
-  unidad?: UnidadEmergencia;
+  operador?: Usuario | null;
+  despachador?: Usuario | null;
+  unidad?: Unidad | null;
+  tipo_emergencia?: CatalogoTipoEmergencia | null;
   historial?: HistorialEstado[];
-  createdAt: string;
-  updatedAt: string;
+  logs_auditoria?: LogAuditoria[];
 }
 
-/** Modelo de unidad de emergencia (bomberos, policía, etc.) */
-export interface UnidadEmergencia {
-  id: string;
-  nombre: string;
-  tipo: string;
-  disponible: boolean;
-  latitud?: number | null;
-  longitud?: number | null;
-}
+/* ─── DTOs de Autenticación y Operación ─── */
 
-/** Registro del historial de cambios de estado de una emergencia */
-export interface HistorialEstado {
-  id: string;
-  emergenciaId: string;
-  estadoAnterior: EstadoEmergencia | null;
-  estadoNuevo: EstadoEmergencia;
-  comentario?: string | null;
-  usuarioId: string;
-  usuario?: Usuario;
-  createdAt: string;
-}
-
-/** Datos necesarios para iniciar sesión */
 export interface LoginCredentials {
   email: string;
   password: string;
 }
 
-/** Datos necesarios para registrar un ciudadano */
 export interface RegistroData {
   nombre: string;
   apellido: string;
   email: string;
-  telefono: string;
+  telefono?: string;
   password: string;
+  rol?: RolUsuario;
 }
 
-/** Respuesta de autenticación del servidor */
 export interface AuthResponse {
   token: string;
   usuario: Usuario;
 }
 
-/** Datos para crear un nuevo reporte de emergencia */
 export interface CrearEmergenciaData {
   descripcion: string;
   latitud: number;
@@ -125,16 +197,17 @@ export interface CrearEmergenciaData {
   evidencia_url?: string;
 }
 
-/** Datos para actualizar el estado de una emergencia */
 export interface ActualizarEstadoData {
   estado: EstadoEmergencia;
   comentario?: string;
 }
 
-/** Respuesta paginada genérica de la API */
 export interface PaginatedResponse<T> {
-  data: T[];
+  data?: T[];
+  datos?: T[];
   total: number;
-  page: number;
-  limit: number;
+  page?: number;
+  pagina?: number;
+  limit?: number;
+  limite?: number;
 }

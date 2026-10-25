@@ -10,7 +10,7 @@ export const crearEmergenciaSchema = z.object({
   descripcion: z.string().min(10, 'La descripción debe tener al menos 10 caracteres'),
   latitud: z.number().min(-90).max(90),
   longitud: z.number().min(-180).max(180),
-  evidencia_url: z.string().url().optional().nullable(),
+  evidencia_url: z.string().optional().nullable(),
 });
 
 /** Esquema para clasificar un reporte: REPORTADO → CLASIFICADO (RF-03) */

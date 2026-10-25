@@ -5,35 +5,47 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { Usuario, LoginCredentials, RegistroData, AuthResponse } from '../types';
-import { Rol } from '../types';
-import api from '../lib/api';
+import type { Usuario, LoginCredentials, RegistroData } from '../types';
+import { RolUsuario } from '../types';
+import { api } from '../lib/api';
 import { guardarToken, guardarUsuario, limpiarSesion, obtenerToken, obtenerUsuario } from '../lib/auth';
 
 /** Forma del contexto de autenticación */
-interface AuthContextType {
+export interface AuthContextType {
   /** Usuario autenticado actual */
   usuario: Usuario | null;
+  user: Usuario | null;
   /** Indica si el usuario está autenticado */
   isAuthenticated: boolean;
+  estaAutenticado: boolean;
   /** Indica si se está cargando el estado de autenticación */
   isLoading: boolean;
-  /** Inicia sesión con email y contraseña */
-  login: (credentials: LoginCredentials) => Promise<void>;
+  estaCargando: boolean;
+  /** Inicia sesión con email y contraseña (como objeto o argumentos individuales) */
+  login: (credentialsOrEmail: LoginCredentials | string, passwordParam?: string) => Promise<Usuario>;
+  iniciarSesion: (credentialsOrEmail: LoginCredentials | string, passwordParam?: string) => Promise<Usuario>;
   /** Registra un nuevo ciudadano */
   registro: (data: RegistroData) => Promise<void>;
+  registrar: (data: RegistroData) => Promise<void>;
   /** Cierra la sesión actual */
   logout: () => Promise<void>;
+  cerrarSesion: () => Promise<void>;
 }
 
 /** Contexto con valores por defecto */
 const AuthContext = createContext<AuthContextType>({
   usuario: null,
+  user: null,
   isAuthenticated: false,
+  estaAutenticado: false,
   isLoading: true,
-  login: async () => {},
+  estaCargando: true,
+  login: async () => ({} as Usuario),
+  iniciarSesion: async () => ({} as Usuario),
   registro: async () => {},
+  registrar: async () => {},
   logout: async () => {},
+  cerrarSesion: async () => {},
 });
 
 /** Props del proveedor de autenticación */
@@ -59,16 +71,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const usuarioGuardado = await obtenerUsuario();
           if (usuarioGuardado) {
             setUsuario(usuarioGuardado);
-          } else {
-            // Si hay token pero no usuario, intentar obtener perfil
-            try {
-              const response = await api.get<Usuario>('/auth/perfil');
-              setUsuario(response.data);
-              await guardarUsuario(response.data);
-            } catch {
-              // Token inválido o expirado
-              await limpiarSesion();
-            }
           }
         }
       } catch (error) {
@@ -84,29 +86,56 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Inicia sesión con las credenciales proporcionadas.
+   * Acepta { email, password } o (email, password).
    * Guarda el token y los datos del usuario en AsyncStorage.
    */
-  const login = useCallback(async (credentials: LoginCredentials) => {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
-    const { token, usuario: usuarioData } = response.data;
+  const login = useCallback(
+    async (credentialsOrEmail: LoginCredentials | string, passwordParam?: string): Promise<Usuario> => {
+      const payload: LoginCredentials =
+        typeof credentialsOrEmail === 'string'
+          ? { email: credentialsOrEmail, password: passwordParam || '' }
+          : credentialsOrEmail;
 
-    await guardarToken(token);
-    await guardarUsuario(usuarioData);
-    setUsuario(usuarioData);
-  }, []);
+      const response = await api.post('/auth/login', payload);
+      const data = response.data?.datos || response.data;
+      const token = data?.token;
+      const usuarioData: Usuario = data?.usuario;
+
+      if (!token || !usuarioData) {
+        throw new Error('Respuesta de autenticación inválida del servidor');
+      }
+
+      await guardarToken(token);
+      await guardarUsuario(usuarioData);
+      setUsuario(usuarioData);
+      return usuarioData;
+    },
+    []
+  );
 
   /**
    * Registra un nuevo ciudadano en el sistema.
-   * Automáticamente asigna el rol CIUDADANO e inicia sesión.
+   * Conecta con POST /api/v1/auth/registrar y asigna rol CIUDADANO si no se especifica.
    */
   const registro = useCallback(async (data: RegistroData) => {
-    const payload = { ...data, rol: Rol.CIUDADANO };
-    const response = await api.post<AuthResponse>('/auth/registro', payload);
-    const { token, usuario: usuarioData } = response.data;
+    const payload = {
+      nombre: data.nombre,
+      apellido: data.apellido,
+      email: data.email,
+      telefono: data.telefono || null,
+      password: data.password,
+      rol: data.rol || RolUsuario.CIUDADANO,
+    };
 
-    await guardarToken(token);
-    await guardarUsuario(usuarioData);
-    setUsuario(usuarioData);
+    const response = await api.post('/auth/registrar', payload);
+    const result = response.data?.datos || response.data;
+
+    // Si la API retorna token y usuario, inicia sesión automáticamente
+    if (result?.token && result?.usuario) {
+      await guardarToken(result.token);
+      await guardarUsuario(result.usuario);
+      setUsuario(result.usuario);
+    }
   }, []);
 
   /**
@@ -120,18 +149,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     usuario,
+    user: usuario,
     isAuthenticated: !!usuario,
+    estaAutenticado: !!usuario,
     isLoading,
+    estaCargando: isLoading,
     login,
+    iniciarSesion: login,
     registro,
+    registrar: registro,
     logout,
+    cerrarSesion: logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 /**

@@ -1,10 +1,10 @@
 /**
- * Componente FormularioReporte - Formulario reutilizable para crear reportes.
- * Gestiona la captura de datos de una emergencia incluyendo
- * descripción, ubicación automática y evidencia fotográfica.
+ * Componente FormularioReporte - Formulario de alta urgencia para reportes SOS.
+ * Diseñado con accesibilidad, selector de categorías rápidas,
+ * confirmación de GPS con precisión y captura multimedia de evidencia.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   Image,
   Alert,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,95 +31,94 @@ interface FormularioReporteProps {
   enviando?: boolean;
 }
 
-/**
- * Formulario completo para reportar una nueva emergencia.
- * Incluye campo de descripción, captura automática de ubicación,
- * selector de imágenes y botón de envío prominente.
- */
+/** Categorías rápidas para facilitar el triage inicial */
+const CATEGORIAS_RAPIDAS = [
+  { id: 'MEDICA', label: 'Médica', icon: 'medical' },
+  { id: 'INCENDIO', label: 'Incendio', icon: 'flame' },
+  { id: 'TRANSITO', label: 'Accidente Vial', icon: 'car-sport' },
+  { id: 'SEGURIDAD', label: 'Seguridad', icon: 'shield-alert' },
+  { id: 'RESCATE', label: 'Rescate', icon: 'help-buoy' },
+  { id: 'OTRO', label: 'Otro Incidente', icon: 'alert-circle' },
+];
+
 export default function FormularioReporte({ onSubmit, enviando = false }: FormularioReporteProps) {
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('MEDICA');
   const [descripcion, setDescripcion] = useState('');
   const [imagenUri, setImagenUri] = useState<string | null>(null);
   const { ubicacion, cargando: cargandoUbicacion, error: errorUbicacion, refrescar } = useLocation(true);
 
-  /**
-   * Abre el selector de imágenes para adjuntar evidencia.
-   * Permite seleccionar desde la galería o capturar con la cámara.
-   */
-  const seleccionarImagen = async () => {
-    Alert.alert(
-      'Adjuntar evidencia',
-      'Selecciona el origen de la imagen',
-      [
-        {
-          text: 'Cámara',
-          onPress: async () => {
-            const permisos = await ImagePicker.requestCameraPermissionsAsync();
-            if (!permisos.granted) {
-              Alert.alert('Permisos requeridos', 'Se necesitan permisos de cámara para tomar fotos.');
-              return;
-            }
-            const resultado = await ImagePicker.launchCameraAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              quality: 0.8,
-              allowsEditing: true,
-            });
-            if (!resultado.canceled && resultado.assets[0]) {
-              setImagenUri(resultado.assets[0].uri);
-            }
-          },
-        },
-        {
-          text: 'Galería',
-          onPress: async () => {
-            const permisos = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!permisos.granted) {
-              Alert.alert('Permisos requeridos', 'Se necesitan permisos para acceder a la galería.');
-              return;
-            }
-            const resultado = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              quality: 0.8,
-              allowsEditing: true,
-            });
-            if (!resultado.canceled && resultado.assets[0]) {
-              setImagenUri(resultado.assets[0].uri);
-            }
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    );
+  /** Abre la cámara o galería según opción seleccionada */
+  const tomarFoto = async () => {
+    try {
+      const permisos = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permisos.granted) {
+        Alert.alert('Permisos requeridos', 'Se necesitan permisos de cámara para capturar la evidencia.');
+        return;
+      }
+      const resultado = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        allowsEditing: true,
+      });
+      if (!resultado.canceled && resultado.assets[0]) {
+        setImagenUri(resultado.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la cámara');
+    }
   };
 
-  /** Elimina la imagen adjunta */
+  const seleccionarGaleria = async () => {
+    try {
+      const permisos = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permisos.granted) {
+        Alert.alert('Permisos requeridos', 'Se necesitan permisos para acceder a las fotos.');
+        return;
+      }
+      const resultado = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        allowsEditing: true,
+      });
+      if (!resultado.canceled && resultado.assets[0]) {
+        setImagenUri(resultado.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la galería');
+    }
+  };
+
   const eliminarImagen = () => {
     setImagenUri(null);
   };
 
-  /**
-   * Valida y envía el formulario.
-   * Requiere descripción y ubicación como mínimo.
-   */
+  /** Envío de reporte con validación */
   const handleSubmit = async () => {
-    if (!descripcion.trim()) {
-      Alert.alert('Campo requerido', 'Por favor, describe la emergencia.');
+    if (!descripcion.trim() || descripcion.trim().length < 10) {
+      Alert.alert(
+        'Descripción requerida',
+        'Por favor describe la situación con al menos 10 caracteres para que los rescatistas sepan qué equipo enviar.'
+      );
       return;
     }
 
     if (!ubicacion) {
       Alert.alert(
         'Ubicación requerida',
-        'No se pudo obtener tu ubicación. ¿Deseas intentar de nuevo?',
+        'Necesitamos capturar tus coordenadas GPS para despachar ayuda inmediata. Presiona "Reintentar GPS".',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Reintentar', onPress: refrescar },
+          { text: 'Reintentar GPS', onPress: refrescar },
         ]
       );
       return;
     }
 
+    const catObj = CATEGORIAS_RAPIDAS.find((c) => c.id === categoriaSeleccionada);
+    const prefijo = catObj ? `[${catObj.label.toUpperCase()}] ` : '';
+
     const data: CrearEmergenciaData = {
-      descripcion: descripcion.trim(),
+      descripcion: `${prefijo}${descripcion.trim()}`,
       latitud: ubicacion.latitud,
       longitud: ubicacion.longitud,
     };
@@ -132,104 +132,163 @@ export default function FormularioReporte({ onSubmit, enviando = false }: Formul
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-      {/* Campo de descripción */}
-      <View style={styles.seccion}>
-        <Text style={styles.label}>Descripción de la emergencia *</Text>
+      {/* Banner de llamada rápida al 911 */}
+      <View style={styles.emergencyBanner}>
+        <Ionicons name="call" size={18} color="#b91c1c" />
+        <View style={styles.bannerTextContainer}>
+          <Text style={styles.bannerTitle}>¿Peligro de muerte inminente?</Text>
+          <Text style={styles.bannerSubtitle}>Llama gratis y directo a los servicios de emergencia</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.call911Button}
+          onPress={() => Linking.openURL('tel:911')}
+        >
+          <Text style={styles.call911Text}>911</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 1. Selector de Tipo de Emergencia */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>1. Tipo de Incidente</Text>
+        <View style={styles.categoriesGrid}>
+          {CATEGORIAS_RAPIDAS.map((cat) => {
+            const isSelected = categoriaSeleccionada === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.catChip, isSelected && styles.catChipActive]}
+                onPress={() => setCategoriaSeleccionada(cat.id)}
+              >
+                <Ionicons
+                  name={cat.icon as any}
+                  size={16}
+                  color={isSelected ? '#ffffff' : Colors.text}
+                />
+                <Text style={[styles.catText, isSelected && styles.catTextActive]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* 2. Coordenadas GPS */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.sectionTitle}>2. Ubicación GPS en Tiempo Real</Text>
+          <TouchableOpacity onPress={refrescar} style={styles.refreshBadge}>
+            <Ionicons name="refresh" size={14} color={Colors.primary} />
+            <Text style={styles.refreshBadgeText}>Actualizar</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.gpsContainer}>
+          {cargandoUbicacion ? (
+            <View style={styles.gpsRow}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={styles.gpsStatusText}>Fijando coordenadas satelitales...</Text>
+            </View>
+          ) : ubicacion ? (
+            <View style={styles.gpsSuccessRow}>
+              <View style={styles.gpsIconCircle}>
+                <Ionicons name="locate" size={20} color={Colors.success} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.gpsTitle}>Ubicación fijada con alta precisión</Text>
+                <Text style={styles.gpsCoords}>
+                  Latitud: {ubicacion.latitud.toFixed(6)} | Longitud: {ubicacion.longitud.toFixed(6)}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.gpsErrorRow}>
+              <Ionicons name="warning" size={20} color={Colors.danger} />
+              <Text style={styles.gpsErrorText}>
+                {errorUbicacion || 'No se pudo obtener el GPS. Verifica los permisos.'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* 3. Descripción de los Hechos */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>3. Descripción del Suceso *</Text>
         <TextInput
           style={styles.textArea}
-          placeholder="Describe qué está sucediendo, qué tipo de emergencia es y cualquier detalle relevante..."
-          placeholderTextColor={Colors.textSecondary}
+          placeholder="Describe brevemente: personas heridas, puntos de referencia cercanos, vehículos involucrados..."
+          placeholderTextColor="#94a3b8"
           multiline
-          numberOfLines={5}
+          numberOfLines={4}
           textAlignVertical="top"
           value={descripcion}
           onChangeText={setDescripcion}
           maxLength={500}
           editable={!enviando}
         />
-        <Text style={styles.contador}>{descripcion.length}/500</Text>
-      </View>
-
-      {/* Sección de ubicación */}
-      <View style={styles.seccion}>
-        <Text style={styles.label}>Ubicación</Text>
-        <View style={styles.ubicacionCard}>
-          {cargandoUbicacion ? (
-            <View style={styles.ubicacionCargando}>
-              <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={styles.ubicacionTexto}>Obteniendo ubicación...</Text>
-            </View>
-          ) : ubicacion ? (
-            <View style={styles.ubicacionInfo}>
-              <Ionicons name="location" size={20} color={Colors.success} />
-              <View style={styles.ubicacionDatos}>
-                <Text style={styles.ubicacionTexto}>Ubicación capturada</Text>
-                <Text style={styles.coordenadas}>
-                  {formatearCoordenadas(ubicacion.latitud, ubicacion.longitud)}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={refrescar} style={styles.refrescarBtn}>
-                <Ionicons name="refresh" size={18} color={Colors.primaryLight} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.ubicacionError}>
-              <Ionicons name="warning" size={20} color={Colors.danger} />
-              <Text style={styles.errorTexto}>
-                {errorUbicacion || 'No se pudo obtener la ubicación'}
-              </Text>
-              <TouchableOpacity onPress={refrescar} style={styles.refrescarBtn}>
-                <Text style={styles.reintentar}>Reintentar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        <View style={styles.charCounter}>
+          <Text style={styles.counterText}>Mínimo 10 car. ({descripcion.length}/500)</Text>
         </View>
       </View>
 
-      {/* Sección de evidencia */}
-      <View style={styles.seccion}>
-        <Text style={styles.label}>Evidencia fotográfica (opcional)</Text>
+      {/* 4. Evidencia Multimedia */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>4. Foto de la Escena (Opcional)</Text>
         {imagenUri ? (
-          <View style={styles.imagenPreview}>
-            <Image source={{ uri: imagenUri }} style={styles.imagen} />
+          <View style={styles.imagePreviewContainer}>
+            <Image source={{ uri: imagenUri }} style={styles.previewImage} />
             <TouchableOpacity
-              style={styles.eliminarImagen}
+              style={styles.removeImageBtn}
               onPress={eliminarImagen}
               disabled={enviando}
             >
-              <Ionicons name="close-circle" size={28} color={Colors.danger} />
+              <Ionicons name="trash" size={18} color="#fff" />
+              <Text style={styles.removeImageText}>Eliminar Foto</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity
-            style={styles.adjuntarBtn}
-            onPress={seleccionarImagen}
-            disabled={enviando}
-          >
-            <Ionicons name="camera-outline" size={32} color={Colors.primaryLight} />
-            <Text style={styles.adjuntarTexto}>Tomar foto o seleccionar de galería</Text>
-          </TouchableOpacity>
+          <View style={styles.photoActionsRow}>
+            <TouchableOpacity
+              style={styles.photoActionBtn}
+              onPress={tomarFoto}
+              disabled={enviando}
+            >
+              <Ionicons name="camera" size={24} color={Colors.primary} />
+              <Text style={styles.photoActionText}>Cámara</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.photoActionBtn}
+              onPress={seleccionarGaleria}
+              disabled={enviando}
+            >
+              <Ionicons name="images" size={24} color={Colors.primary} />
+              <Text style={styles.photoActionText}>Galería</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
-      {/* Botón de envío */}
+      {/* Botón de Emergencia Prominente */}
       <TouchableOpacity
-        style={[styles.submitBtn, enviando && styles.submitBtnDisabled]}
+        style={[styles.submitButton, enviando && styles.submitButtonDisabled]}
         onPress={handleSubmit}
         disabled={enviando}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         {enviando ? (
-          <ActivityIndicator size="small" color="#ffffff" />
+          <View style={styles.submitLoadingRow}>
+            <ActivityIndicator size="small" color="#ffffff" />
+            <Text style={styles.submitButtonText}>ENVIANDO AL CENTRO DE COMANDO...</Text>
+          </View>
         ) : (
-          <>
-            <Ionicons name="alert-circle" size={22} color="#ffffff" />
-            <Text style={styles.submitTexto}>REPORTAR EMERGENCIA</Text>
-          </>
+          <View style={styles.submitLoadingRow}>
+            <Ionicons name="radio" size={24} color="#ffffff" />
+            <Text style={styles.submitButtonText}>ENVIAR REPORTE SOS</Text>
+          </View>
         )}
       </TouchableOpacity>
 
-      {/* Espacio inferior */}
       <View style={{ height: Spacing.xxxl }} />
     </ScrollView>
   );
@@ -238,130 +297,249 @@ export default function FormularioReporte({ onSubmit, enviando = false }: Formul
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: '#f8fafc',
   },
-  seccion: {
-    marginBottom: Spacing.xl,
+  emergencyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm + 4,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
   },
-  label: {
-    fontSize: FontSize.md,
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: FontSize.xs + 1,
+    fontWeight: 'bold',
+    color: '#991b1b',
+  },
+  bannerSubtitle: {
+    fontSize: FontSize.xs - 1,
+    color: '#b91c1c',
+  },
+  call911Button: {
+    backgroundColor: '#dc2626',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
+  },
+  call911Text: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: FontSize.sm,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...Shadows.sm,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.xs + 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs + 2,
+    marginTop: 4,
+  },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 4,
+  },
+  catChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  catText: {
+    fontSize: FontSize.xs,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: Spacing.sm,
   },
-  textArea: {
-    backgroundColor: Colors.inputBackground,
+  catTextActive: {
+    color: '#ffffff',
+  },
+  refreshBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: '#eff6ff',
+    borderRadius: BorderRadius.sm,
+  },
+  refreshBadgeText: {
+    fontSize: FontSize.xs - 1,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  gpsContainer: {
+    marginTop: 4,
+    backgroundColor: '#f8fafc',
     borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    minHeight: 120,
+    borderColor: '#e2e8f0',
   },
-  contador: {
+  gpsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  gpsStatusText: {
     fontSize: FontSize.xs,
     color: Colors.textSecondary,
-    textAlign: 'right',
-    marginTop: Spacing.xs,
   },
-  ubicacionCard: {
-    backgroundColor: Colors.inputBackground,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
-  },
-  ubicacionCargando: {
+  gpsSuccessRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  ubicacionInfo: {
-    flexDirection: 'row',
+  gpsIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#dcfce7',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.sm,
   },
-  ubicacionDatos: {
-    flex: 1,
+  gpsTitle: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: '#166534',
   },
-  ubicacionTexto: {
-    fontSize: FontSize.md,
-    color: Colors.text,
-  },
-  coordenadas: {
-    fontSize: FontSize.sm,
+  gpsCoords: {
+    fontSize: FontSize.xs - 1,
     color: Colors.textSecondary,
+    fontFamily: 'monospace',
     marginTop: 2,
   },
-  ubicacionError: {
+  gpsErrorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  errorTexto: {
-    flex: 1,
-    fontSize: FontSize.sm,
+  gpsErrorText: {
+    fontSize: FontSize.xs,
     color: Colors.danger,
+    flex: 1,
   },
-  refrescarBtn: {
-    padding: Spacing.xs,
-  },
-  reintentar: {
-    fontSize: FontSize.sm,
-    color: Colors.primaryLight,
-    fontWeight: '600',
-  },
-  adjuntarBtn: {
-    backgroundColor: Colors.inputBackground,
+  textArea: {
+    backgroundColor: '#f8fafc',
     borderRadius: BorderRadius.md,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
-    padding: Spacing.xxl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  adjuntarTexto: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    padding: Spacing.sm + 2,
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    textAlign: 'center',
+    color: Colors.text,
+    minHeight: 90,
   },
-  imagenPreview: {
-    position: 'relative',
+  charCounter: {
+    marginTop: 4,
+    alignItems: 'flex-end',
+  },
+  counterText: {
+    fontSize: FontSize.xs - 1,
+    color: Colors.textSecondary,
+  },
+  imagePreviewContainer: {
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
+    position: 'relative',
   },
-  imagen: {
+  previewImage: {
     width: '100%',
-    height: 200,
+    height: 180,
     borderRadius: BorderRadius.md,
   },
-  eliminarImagen: {
+  removeImageBtn: {
     position: 'absolute',
-    top: Spacing.sm,
+    bottom: Spacing.sm,
     right: Spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(220, 38, 38, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
   },
-  submitBtn: {
-    backgroundColor: Colors.danger,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+  removeImageText: {
+    color: '#fff',
+    fontSize: FontSize.xs,
+    fontWeight: 'bold',
+  },
+  photoActionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  photoActionBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#93c5fd',
+    backgroundColor: '#eff6ff',
+    gap: Spacing.xs + 2,
+  },
+  photoActionText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  submitButton: {
+    backgroundColor: Colors.danger,
+    paddingVertical: Spacing.md + 2,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...Shadows.lg,
+    shadowColor: Colors.danger,
+    shadowOpacity: 0.35,
   },
-  submitBtnDisabled: {
-    opacity: 0.6,
+  submitButtonDisabled: {
+    opacity: 0.65,
   },
-  submitTexto: {
+  submitLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  submitButtonText: {
     color: '#ffffff',
-    fontSize: FontSize.lg,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: FontSize.md,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
 });
