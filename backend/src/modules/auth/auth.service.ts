@@ -42,7 +42,9 @@ export async function register(data: RegisterInput) {
       email: data.email,
       telefono: data.telefono || null,
       password_hash: passwordHash,
-      rol: data.rol as RolUsuario,
+      // El autoregistro público está reservado exclusivamente para ciudadanos.
+      // Los perfiles operativos (Operador Integral, Personal de Campo) son creados por el Administrador.
+      rol: RolUsuario.CIUDADANO,
     },
     select: {
       id: true,
@@ -66,9 +68,22 @@ export async function register(data: RegisterInput) {
  * @throws Error si las credenciales son inválidas o la cuenta está desactivada
  */
 export async function login(data: LoginInput) {
-  // Buscar el usuario por correo electrónico
+  // Buscar el usuario por correo electrónico e incluir su unidad asignada si es personal de campo
   const usuario = await prisma.usuario.findUnique({
     where: { email: data.email },
+    include: {
+      unidad_asignada: {
+        select: {
+          id: true,
+          codigo: true,
+          tipo: true,
+          placa: true,
+          estado: true,
+          latitud_actual: true,
+          longitud_actual: true,
+        },
+      },
+    },
   });
 
   if (!usuario) {
@@ -111,7 +126,47 @@ export async function login(data: LoginInput) {
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       email: usuario.email,
+      telefono: usuario.telefono,
       rol: usuario.rol,
+      unidad_asignada: usuario.unidad_asignada || null,
     },
   };
+}
+
+/**
+ * Obtiene el perfil actualizado del usuario autenticado en tiempo real
+ */
+export async function obtenerPerfil(idUsuario: number) {
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: idUsuario },
+    select: {
+      id: true,
+      nombre: true,
+      apellido: true,
+      email: true,
+      telefono: true,
+      rol: true,
+      activo: true,
+      fecha_creacion: true,
+      unidad_asignada: {
+        select: {
+          id: true,
+          codigo: true,
+          tipo: true,
+          placa: true,
+          estado: true,
+          latitud_actual: true,
+          longitud_actual: true,
+        },
+      },
+    },
+  });
+
+  if (!usuario) {
+    const error = new Error('Usuario no encontrado');
+    (error as any).statusCode = 404;
+    throw error;
+  }
+
+  return usuario;
 }

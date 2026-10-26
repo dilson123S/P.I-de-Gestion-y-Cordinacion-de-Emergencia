@@ -27,7 +27,6 @@ export default function RegistroScreen() {
   const [password, setPassword] = useState('');
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
-  const [rol, setRol] = useState<RolUsuario>(RolUsuario.CIUDADANO);
 
   const handleRegistro = async () => {
     if (!nombre.trim() || !apellido.trim() || !email.trim() || !password) {
@@ -48,15 +47,13 @@ export default function RegistroScreen() {
         email: email.trim(),
         telefono: telefono.trim() || undefined,
         password,
-        rol,
+        rol: RolUsuario.CIUDADANO,
       });
 
       Alert.alert(
         'Registro exitoso',
-        rol === RolUsuario.CIUDADANO
-          ? 'Tu perfil de ciudadano quedó creado. Ya puedes iniciar sesión para reportar emergencias.'
-          : 'Tu perfil de operador quedó creado. Usa estas credenciales para acceder al panel web de operaciones.',
-        [{ text: 'Comenzar', onPress: () => router.replace('/(auth)/login') }]
+        'Tu perfil de ciudadano ha sido creado exitosamente. Ya puedes iniciar sesión para emitir reportes de auxilio.',
+        [{ text: 'Ingresar', onPress: () => router.replace('/(auth)/login') }]
       );
     } catch (err: any) {
       const errorDeRed = !err?.response && err?.message === 'Network Error';
@@ -85,43 +82,19 @@ export default function RegistroScreen() {
           <Text style={styles.backText}>Volver al Login</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Crear perfil</Text>
+        <Text style={styles.title}>Registro de Ciudadano</Text>
         <Text style={styles.subtitle}>
-          Elige el tipo de cuenta que necesitas.
+          Canal oficial de auxilio y reporte de emergencias (RNF-07). Crea tu cuenta ciudadana para reportar incidentes con ubicación en tiempo real.
         </Text>
 
+        <View style={styles.institutionalNote}>
+          <Ionicons name="shield-checkmark" size={16} color={Colors.primary} />
+          <Text style={styles.institutionalNoteText}>
+            El autoregistro móvil es de uso exclusivo para ciudadanos. Los perfiles de Operador Integral y Personal de Campo son creados y asignados por la Administración Central de Emergencias.
+          </Text>
+        </View>
+
         <View style={styles.formCard}>
-          <Text style={styles.label}>Tipo de perfil *</Text>
-          <View style={styles.roleOptions}>
-            <TouchableOpacity
-              accessibilityRole="radio"
-              accessibilityState={{ selected: rol === RolUsuario.CIUDADANO }}
-              style={[styles.roleOption, rol === RolUsuario.CIUDADANO && styles.roleOptionSelected]}
-              onPress={() => setRol(RolUsuario.CIUDADANO)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="person-circle-outline" size={24} color={rol === RolUsuario.CIUDADANO ? Colors.primary : Colors.textSecondary} />
-              <View style={styles.roleOptionCopy}>
-                <Text style={styles.roleOptionTitle}>Ciudadano</Text>
-                <Text style={styles.roleOptionDescription}>Reporta emergencias</Text>
-              </View>
-              {rol === RolUsuario.CIUDADANO && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              accessibilityRole="radio"
-              accessibilityState={{ selected: rol === RolUsuario.OPERADOR }}
-              style={[styles.roleOption, rol === RolUsuario.OPERADOR && styles.roleOptionSelected]}
-              onPress={() => setRol(RolUsuario.OPERADOR)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="headset-outline" size={24} color={rol === RolUsuario.OPERADOR ? Colors.primary : Colors.textSecondary} />
-              <View style={styles.roleOptionCopy}>
-                <Text style={styles.roleOptionTitle}>Operador</Text>
-                <Text style={styles.roleOptionDescription}>Gestiona reportes</Text>
-              </View>
-              {rol === RolUsuario.OPERADOR && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
-            </TouchableOpacity>
-          </View>
 
           <Text style={styles.label}>Nombre *</Text>
           <View style={styles.inputWrapper}>
@@ -253,9 +226,27 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: FontSize.xs + 1,
     color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     marginTop: 4,
     lineHeight: 18,
+  },
+  institutionalNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm + 2,
+    marginBottom: Spacing.md,
+  },
+  institutionalNoteText: {
+    fontSize: FontSize.xs,
+    color: '#1e40af',
+    flex: 1,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   formCard: {
     backgroundColor: '#ffffff',

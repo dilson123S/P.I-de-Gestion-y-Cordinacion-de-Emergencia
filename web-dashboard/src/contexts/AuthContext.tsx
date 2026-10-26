@@ -17,7 +17,7 @@ import {
   guardarUsuario,
   obtenerUsuarioStorage,
 } from '@/lib/auth';
-import type { Usuario } from '@/types';
+import { type Usuario, RolUsuario } from '@/types';
 import { mockUsuarios } from '@/lib/mock-data';
 
 /* ─── Interfaz del contexto de autenticación ─── */
@@ -51,7 +51,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const usuarioAlmacenado = obtenerUsuarioStorage();
 
       if (token && usuarioAlmacenado) {
-        setUsuario(usuarioAlmacenado as unknown as Usuario);
+        if ((usuarioAlmacenado as any).rol === 'CIUDADANO' || (usuarioAlmacenado as any).rol === RolUsuario.CIUDADANO) {
+          eliminarToken();
+          setUsuario(null);
+        } else {
+          setUsuario(usuarioAlmacenado as unknown as Usuario);
+        }
       }
       setCargando(false);
     };
@@ -72,6 +77,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const datosUsuario = respuesta.data?.datos?.usuario || respuesta.data?.usuario;
 
         if (token && datosUsuario) {
+          if (datosUsuario.rol === 'CIUDADANO' || datosUsuario.rol === RolUsuario.CIUDADANO) {
+            throw new Error(
+              'Acceso denegado: El rol Ciudadano está deshabilitado en esta consola web. La emisión y seguimiento de alertas ciudadanas opera exclusivamente desde la App Móvil SIGEM.'
+            );
+          }
+
           guardarToken(token);
           guardarUsuario(datosUsuario);
           setUsuario(datosUsuario);
@@ -79,6 +90,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
       } catch (err: any) {
+        if (err?.message?.includes('Acceso denegado')) {
+          throw err;
+        }
+
         // Modo fallback para pruebas locales si el backend no está encendido
         const esErrorConexion =
           err?.code === 'ERR_NETWORK' ||
@@ -88,7 +103,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (esErrorConexion) {
           const usuarioDemo =
             mockUsuarios.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
-            (email.toLowerCase().includes('admin') ? mockUsuarios[0] : mockUsuarios[1]); // Por defecto Operador Integral
+            (email.toLowerCase().includes('admin') ? mockUsuarios[0] : mockUsuarios[1]);
+
+          if (String(usuarioDemo.rol) === 'CIUDADANO' || (usuarioDemo.rol as any) === RolUsuario.CIUDADANO) {
+            throw new Error(
+              'Acceso denegado: El rol Ciudadano está deshabilitado en esta consola web. La emisión y seguimiento de alertas ciudadanas opera exclusivamente desde la App Móvil SIGEM.'
+            );
+          }
 
           const tokenDemo = 'jwt_demo_token_sigem';
           guardarToken(tokenDemo);

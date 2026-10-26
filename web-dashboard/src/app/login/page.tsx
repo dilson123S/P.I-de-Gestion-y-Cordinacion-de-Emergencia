@@ -77,10 +77,13 @@ export default function LoginPage() {
             {loading ? 'Ingresando...' : 'Iniciar Sesión'}
           </Button>
 
-          <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 border border-slate-200 mt-4">
-            <p className="font-semibold text-slate-800 mb-1">Roles de la Plataforma Web:</p>
-            <p>Admin: <span className="font-mono">admin@emergencias.gob</span> / admin123</p>
-            <p>Operador Integral: <span className="font-mono">operador@emergencias.gob</span> / operador123</p>
+          <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 border border-slate-200 mt-4 space-y-1">
+            <p className="font-bold text-slate-800 mb-1">Roles Autorizados en Consola Web:</p>
+            <p><span className="font-semibold text-slate-700">1. Administrador:</span> <span className="font-mono text-slate-900">admin@emergencias.gob</span> / admin123</p>
+            <p><span className="font-semibold text-slate-700">2. Operador Integral:</span> <span className="font-mono text-slate-900">operador1@emergencias.gob</span> / operador123</p>
+            <div className="mt-2 pt-2 border-t border-slate-200 text-[11px] text-slate-500 italic">
+              ℹ️ El Operador Integral combina el triage (RF-03) y el despacho vehicular (RF-05) en un solo puesto unificado.
+            </div>
           </div>
         </form>
       </div>

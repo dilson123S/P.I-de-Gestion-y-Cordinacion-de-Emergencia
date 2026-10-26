@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Layers, MapPin, RefreshCw, AlertTriangle, Truck, Compass } from 'lucide-react';
+import { Layers, MapPin, RefreshCw, AlertTriangle, Truck, Compass, Radio } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import EstadoBadge from '@/components/emergencias/EstadoBadge';
 import { api } from '@/lib/api';
 import { Emergencia, Unidad, EstadoEmergencia } from '@/types';
 import { mockEmergencias, mockUnidades } from '@/lib/mock-data';
+import RadarCanvas from '@/components/tactical/RadarCanvas';
 
 // Import dinámico de MapaInteractivo para evitar SSR de Leaflet
 const MapaInteractivo = dynamic(() => import('@/components/mapa/MapaInteractivo'), {
@@ -68,7 +69,16 @@ export default function MapaGeneralPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Telemetría táctica de radar en el módulo de mapa */}
+          <div className="hidden md:flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 shadow-sm text-xs text-emerald-400 font-mono">
+            <RadarCanvas size={22} color="#10b981" />
+            <span className="font-semibold tracking-wide flex items-center gap-1.5">
+              <Radio className="h-3.5 w-3.5 text-emerald-400" />
+              DESPACHO 123
+            </span>
+          </div>
+
           <Button variant="outline" size="sm" onClick={cargarDatos} disabled={cargando} className="flex items-center gap-1.5">
             <RefreshCw className={`h-4 w-4 ${cargando ? 'animate-spin' : ''}`} />
             Actualizar Posiciones

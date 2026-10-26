@@ -64,35 +64,44 @@ export default function PerfilScreen() {
         </View>
       </View>
 
-      {/* Líneas de Auxilio Rápido */}
+      {/* Líneas de Auxilio Rápido (Cartagena de Indias) */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Líneas Directas de Auxilio</Text>
+        <Text style={styles.sectionTitle}>Líneas Directas de Auxilio (Cartagena)</Text>
         <View style={styles.emergencyGrid}>
           <TouchableOpacity
             style={styles.emergencyDialBtn}
-            onPress={() => llamarNumero('911')}
+            onPress={() => llamarNumero('123')}
           >
             <Ionicons name="call" size={18} color={Colors.danger} />
-            <Text style={styles.emergencyDialNumber}>911</Text>
-            <Text style={styles.emergencyDialLabel}>Emergencias</Text>
+            <Text style={styles.emergencyDialNumber}>123</Text>
+            <Text style={styles.emergencyDialLabel}>Central SOS</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.emergencyDialBtn}
-            onPress={() => llamarNumero('118')}
+            onPress={() => llamarNumero('125')}
           >
-            <Ionicons name="shield" size={18} color={Colors.primary} />
-            <Text style={styles.emergencyDialNumber}>118</Text>
-            <Text style={styles.emergencyDialLabel}>Policía</Text>
+            <Ionicons name="medkit" size={18} color={Colors.primary} />
+            <Text style={styles.emergencyDialNumber}>125</Text>
+            <Text style={styles.emergencyDialLabel}>CRUE Salud</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.emergencyDialBtn}
-            onPress={() => llamarNumero('115')}
+            onPress={() => llamarNumero('119')}
           >
             <Ionicons name="flame" size={18} color={Colors.warning} />
-            <Text style={styles.emergencyDialNumber}>115</Text>
+            <Text style={styles.emergencyDialNumber}>119</Text>
             <Text style={styles.emergencyDialLabel}>Bomberos</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.emergencyDialBtn}
+            onPress={() => llamarNumero('156')}
+          >
+            <Ionicons name="shield" size={18} color="#1d4ed8" />
+            <Text style={styles.emergencyDialNumber}>156</Text>
+            <Text style={styles.emergencyDialLabel}>Policía</Text>
           </TouchableOpacity>
         </View>
       </View>

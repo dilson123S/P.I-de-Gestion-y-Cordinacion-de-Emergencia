@@ -36,8 +36,14 @@ export default function LoginScreen() {
       const user = await login(email.trim(), password);
       if (user.rol === RolUsuario.PERSONAL_CAMPO) {
         router.replace('/(campo)/asignaciones');
-      } else {
+      } else if (user.rol === RolUsuario.CIUDADANO) {
         router.replace('/(ciudadano)/inicio');
+      } else {
+        Alert.alert(
+          'Acceso Restringido a Consola Web',
+          'Los puestos de Triage, Despacho y Administración operan exclusivamente desde la Consola Central de Mando Web (http://localhost:3002). La aplicación móvil está reservada para Ciudadanos y Unidades en Campo.',
+          [{ text: 'Entendido' }]
+        );
       }
     } catch (err: any) {
       const mensaje = err?.response?.data?.mensaje || err.message || 'Credenciales incorrectas';
@@ -138,28 +144,21 @@ export default function LoginScreen() {
 
         {/* Accesos Rápidos para Evaluación y Pruebas */}
         <View style={styles.demoCard}>
-          <Text style={styles.demoTitle}>Cuentas Semilla para Pruebas:</Text>
+          <Text style={styles.demoTitle}>Perfiles Móviles Autorizados (Pruebas):</Text>
           <View style={styles.demoButtonsRow}>
             <TouchableOpacity
               style={styles.demoBtn}
               onPress={() => llenarDemo('ciudadano@correo.com', 'ciudadano123')}
             >
               <Ionicons name="person-circle" size={14} color={Colors.primary} />
-              <Text style={styles.demoBtnText}>Ciudadano</Text>
+              <Text style={styles.demoBtnText}>Ciudadano SOS</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.demoBtn}
               onPress={() => llenarDemo('campo1@emergencias.gob', 'campo123')}
             >
               <Ionicons name="car-sport" size={14} color={Colors.primary} />
-              <Text style={styles.demoBtnText}>Personal Campo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.demoBtn}
-              onPress={() => llenarDemo('operador1@emergencias.gob', 'operador123')}
-            >
-              <Ionicons name="headset" size={14} color={Colors.primary} />
-              <Text style={styles.demoBtnText}>Operador</Text>
+              <Text style={styles.demoBtnText}>Personal en Campo</Text>
             </TouchableOpacity>
           </View>
         </View>

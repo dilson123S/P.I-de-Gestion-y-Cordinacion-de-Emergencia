@@ -1,10 +1,38 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
+import { View, StyleSheet, Platform, ActivityIndicator, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/constants/theme';
+import { useAuth } from '../../src/hooks/useAuth';
+import { RolUsuario } from '../../src/types';
 
 export default function CiudadanoLayout() {
+  const router = useRouter();
+  const { estaAutenticado, estaCargando, usuario } = useAuth();
+
+  useEffect(() => {
+    if (!estaCargando) {
+      if (!estaAutenticado) {
+        router.replace('/(auth)/login');
+      } else if (usuario && usuario.rol !== RolUsuario.CIUDADANO) {
+        if (usuario.rol === RolUsuario.PERSONAL_CAMPO) {
+          router.replace('/(campo)/asignaciones');
+        } else {
+          router.replace('/(auth)/login');
+        }
+      }
+    }
+  }, [estaAutenticado, estaCargando, usuario, router]);
+
+  if (estaCargando || !estaAutenticado || (usuario && usuario.rol !== RolUsuario.CIUDADANO)) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Verificando acceso ciudadano...</Text>
+      </View>
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{
@@ -74,6 +102,18 @@ export default function CiudadanoLayout() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+  },
   sosTabIcon: {
     width: 44,
     height: 44,

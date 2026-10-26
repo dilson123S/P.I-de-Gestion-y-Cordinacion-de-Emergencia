@@ -4,7 +4,7 @@
  * confirmación de GPS con precisión y captura multimedia de evidencia.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import {
   Alert,
   ScrollView,
   Linking,
+  Vibration,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,7 +25,6 @@ import { useLocation } from '../hooks/useLocation';
 import { formatearCoordenadas } from '../lib/location';
 import { Colors, FontSize, Spacing, BorderRadius, Shadows } from '../constants/theme';
 import type { CrearEmergenciaData } from '../types';
-import { api } from '../lib/api';
 
 interface FormularioReporteProps {
   /** Callback al enviar el formulario con los datos completos */
@@ -37,7 +38,7 @@ const CATEGORIAS_RAPIDAS = [
   { id: 'MEDICA', label: 'Médica', icon: 'medical' },
   { id: 'INCENDIO', label: 'Incendio', icon: 'flame' },
   { id: 'TRANSITO', label: 'Accidente Vial', icon: 'car-sport' },
-  { id: 'SEGURIDAD', label: 'Seguridad', icon: 'shield-alert' },
+  { id: 'SEGURIDAD', label: 'Seguridad', icon: 'shield' },
   { id: 'RESCATE', label: 'Rescate', icon: 'help-buoy' },
   { id: 'OTRO', label: 'Otro Incidente', icon: 'alert-circle' },
 ];
@@ -47,6 +48,27 @@ export default function FormularioReporte({ onSubmit, enviando = false }: Formul
   const [descripcion, setDescripcion] = useState('');
   const [imagenUri, setImagenUri] = useState<string | null>(null);
   const { ubicacion, cargando: cargandoUbicacion, error: errorUbicacion, refrescar } = useLocation(true);
+
+  // Animación de pulso continuo (latido) para el botón SOS
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.025,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim]);
 
   /** Abre la cámara o galería según opción seleccionada */
   const tomarFoto = async () => {
@@ -125,21 +147,13 @@ export default function FormularioReporte({ onSubmit, enviando = false }: Formul
     };
 
     if (imagenUri) {
-      const nombreArchivo = imagenUri.split('/').pop()?.split('?')[0] || 'evidencia.jpg';
-      const tipoMime = /\.png$/i.test(nombreArchivo)
-        ? 'image/png'
-        : /\.webp$/i.test(nombreArchivo)
-          ? 'image/webp'
-          : 'image/jpeg';
-      const archivo = new FormData();
-      archivo.append('archivo', { uri: imagenUri, name: nombreArchivo, type: tipoMime } as any);
+      data.evidencia_url = imagenUri;
+    }
 
-      const respuesta = await api.post('/emergencias/evidencias', archivo, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const evidenciaUrl = respuesta.data?.datos?.evidencia_url;
-      if (!evidenciaUrl) throw new Error('El servidor no devolvió la ruta de la foto.');
-      data.evidencia_url = evidenciaUrl;
+    try {
+      Vibration.vibrate([0, 70, 50, 70]);
+    } catch {
+      // Ignorar si haptics no está soportado en simulador/web
     }
 
     await onSubmit(data);
@@ -147,19 +161,51 @@ export default function FormularioReporte({ onSubmit, enviando = false }: Formul
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-      {/* Banner de llamada rápida al 911 */}
+      {/* Banner institucional de llamada directa a líneas oficiales de emergencia */}
       <View style={styles.emergencyBanner}>
-        <Ionicons name="call" size={18} color="#b91c1c" />
-        <View style={styles.bannerTextContainer}>
-          <Text style={styles.bannerTitle}>¿Peligro de muerte inminente?</Text>
-          <Text style={styles.bannerSubtitle}>Llama gratis y directo a los servicios de emergencia</Text>
+        <View style={styles.bannerHeaderRow}>
+          <View style={styles.bannerHeaderTitleRow}>
+            <Ionicons name="call" size={16} color="#b91c1c" />
+            <Text style={styles.bannerTitle}>¿Riesgo vital o peligro inminente?</Text>
+          </View>
+          <Text style={styles.bannerSubtitle}>
+            Comunícate gratis y en directo con las centrales de atención ciudadana:
+          </Text>
         </View>
-        <TouchableOpacity
-          style={styles.call911Button}
-          onPress={() => Linking.openURL('tel:911')}
-        >
-          <Text style={styles.call911Text}>911</Text>
-        </TouchableOpacity>
+
+        <View style={styles.hotlinesRow}>
+          <TouchableOpacity
+            style={styles.hotlinePillPrimary}
+            onPress={() => Linking.openURL('tel:123')}
+          >
+            <Ionicons name="shield-checkmark" size={13} color="#fff" />
+            <Text style={styles.hotlinePillPrimaryText}>123 UNIFICADA</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.hotlinePill}
+            onPress={() => Linking.openURL('tel:125')}
+          >
+            <Ionicons name="medkit" size={12} color="#dc2626" />
+            <Text style={styles.hotlinePillText}>125 CRUE</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.hotlinePill}
+            onPress={() => Linking.openURL('tel:119')}
+          >
+            <Ionicons name="flame" size={12} color="#ea580c" />
+            <Text style={styles.hotlinePillText}>119 Bomberos</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.hotlinePill}
+            onPress={() => Linking.openURL('tel:156')}
+          >
+            <Ionicons name="car-sport" size={12} color="#1d4ed8" />
+            <Text style={styles.hotlinePillText}>156 Policía</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 1. Selector de Tipo de Emergencia */}
@@ -284,25 +330,27 @@ export default function FormularioReporte({ onSubmit, enviando = false }: Formul
         )}
       </View>
 
-      {/* Botón de Emergencia Prominente */}
-      <TouchableOpacity
-        style={[styles.submitButton, enviando && styles.submitButtonDisabled]}
-        onPress={handleSubmit}
-        disabled={enviando}
-        activeOpacity={0.85}
-      >
-        {enviando ? (
-          <View style={styles.submitLoadingRow}>
-            <ActivityIndicator size="small" color="#ffffff" />
-            <Text style={styles.submitButtonText}>ENVIANDO AL CENTRO DE COMANDO...</Text>
-          </View>
-        ) : (
-          <View style={styles.submitLoadingRow}>
-            <Ionicons name="radio" size={24} color="#ffffff" />
-            <Text style={styles.submitButtonText}>ENVIAR REPORTE SOS</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      {/* Botón de Emergencia Prominente con Animación de Pulso Continuo */}
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <TouchableOpacity
+          style={[styles.submitButton, enviando && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={enviando}
+          activeOpacity={0.85}
+        >
+          {enviando ? (
+            <View style={styles.submitLoadingRow}>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={styles.submitButtonText}>ENVIANDO AL CENTRO DE COMANDO...</Text>
+            </View>
+          ) : (
+            <View style={styles.submitLoadingRow}>
+              <Ionicons name="radio" size={24} color="#ffffff" />
+              <Text style={styles.submitButtonText}>ENVIAR REPORTE SOS</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
       <View style={{ height: Spacing.xxxl }} />
     </ScrollView>
@@ -316,38 +364,68 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   emergencyBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#fef2f2',
     borderWidth: 1,
     borderColor: '#fecaca',
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.sm + 4,
     marginBottom: Spacing.md,
-    gap: Spacing.sm,
+    gap: Spacing.xs + 2,
+    ...Shadows.sm,
   },
-  bannerTextContainer: {
-    flex: 1,
+  bannerHeaderRow: {
+    marginBottom: 4,
+  },
+  bannerHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   bannerTitle: {
     fontSize: FontSize.xs + 1,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#991b1b',
   },
   bannerSubtitle: {
     fontSize: FontSize.xs - 1,
     color: '#b91c1c',
+    marginTop: 1,
   },
-  call911Button: {
+  hotlinesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  hotlinePillPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#dc2626',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.full,
+    gap: 4,
   },
-  call911Text: {
+  hotlinePillPrimaryText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs - 1,
+    fontWeight: '900',
+  },
+  hotlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    gap: 3,
+  },
+  hotlinePillText: {
+    color: '#7f1d1d',
+    fontSize: FontSize.xs - 1,
+    fontWeight: '700',
   },
   card: {
     backgroundColor: '#ffffff',

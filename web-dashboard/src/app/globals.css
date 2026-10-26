@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   SIGEM — Sistema Integral de Gestión de Emergencias
+   Global Stylesheet — Institutional / Tactical Theme
+   ============================================================ */
+
 :root {
   --foreground-rgb: 15, 23, 42;
   --background-rgb: 248, 250, 252;
@@ -15,7 +20,208 @@ body {
   min-height: 100vh;
 }
 
-/* Estilos personalizados para Leaflet y marcadores interactivos */
+/* ============================================================
+   Keyframe Animations
+   ============================================================ */
+
+/* Rotating 360° sweep for tactical radar */
+@keyframes radar-sweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Pulsing ring for critical emergency markers */
+@keyframes pulse-critical {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(220, 38, 38, 0.25);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(220, 38, 38, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+}
+
+/* Blue pulsing glow for dispatched units */
+@keyframes pulse-dispatch {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 12px 6px rgba(59, 130, 246, 0.25);
+  }
+}
+
+/* Slide in from the right for notification toasts */
+@keyframes slide-in-right {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Fade in while moving up for card entrance */
+@keyframes fade-up {
+  0% {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Alternating opacity for high-priority items */
+@keyframes blink-alert {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Linear width shrink for SLA countdown timers */
+@keyframes countdown-bar {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
+}
+
+/* Quick flash when a dispatch is acknowledged */
+@keyframes radio-chirp-visual {
+  0% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.6;
+    filter: brightness(1.8);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+/* Subtle breathing scale for live/active indicators */
+@keyframes breathing {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+/* ============================================================
+   Animation Utility Classes
+   ============================================================ */
+
+.animate-radar-sweep {
+  animation: radar-sweep 4s linear infinite;
+}
+
+.animate-pulse-dispatch {
+  animation: pulse-dispatch 2s ease-in-out infinite;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out both;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out both;
+}
+
+.animate-blink-alert {
+  animation: blink-alert 1s step-end infinite;
+}
+
+.animate-breathing {
+  animation: breathing 3s ease-in-out infinite;
+}
+
+/* ============================================================
+   Tactical HUD Utilities
+   ============================================================ */
+
+/* Faint grid overlay for tactical map backgrounds */
+.tactical-grid {
+  background-image: repeating-linear-gradient(
+      0deg,
+      rgba(30, 41, 59, 0.1) 0px,
+      rgba(30, 41, 59, 0.1) 1px,
+      transparent 1px,
+      transparent 40px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(30, 41, 59, 0.1) 0px,
+      rgba(30, 41, 59, 0.1) 1px,
+      transparent 1px,
+      transparent 40px
+    );
+}
+
+/* Monospace HUD-style overlay text */
+.tactical-hud-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: #34d399; /* emerald-400 */
+}
+
+/* SLA countdown timer bar */
+.sla-timer-bar {
+  height: 3px;
+  background-color: #f59e0b; /* amber-500 */
+  animation: countdown-bar linear forwards;
+  border-radius: 2px;
+}
+
+.sla-timer-bar.critical {
+  background-color: #ef4444; /* red-500 */
+}
+
+/* ============================================================
+   Print Utilities
+   ============================================================ */
+
+.print-only {
+  display: none;
+}
+
+/* Note: .no-print only takes effect in @media print below. Never force display:block here. */
+
+/* ============================================================
+   Estilos personalizados para Leaflet y marcadores interactivos
+   ============================================================ */
+
 .leaflet-container {
   width: 100%;
   height: 100%;
@@ -30,8 +236,9 @@ body {
   border-radius: 9999px;
   font-weight: bold;
   color: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .custom-emergency-marker:hover {
@@ -43,14 +250,74 @@ body {
   animation: pulse-critical 1.8s infinite;
 }
 
-@keyframes pulse-critical {
-  0% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+.pulse-marker-dispatch {
+  animation: pulse-dispatch 2s ease-in-out infinite;
+}
+
+/* ============================================================
+   Scrollbar Customisation (Webkit)
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #334155; /* slate-700 */
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #64748b; /* slate-500 */
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}
+
+/* ============================================================
+   Print Stylesheet
+   ============================================================ */
+
+@media print {
+  @page {
+    size: letter;
+    margin: 15mm;
   }
-  70% {
-    box-shadow: 0 0 0 14px rgba(220, 38, 38, 0);
+
+  body {
+    color: #000 !important;
+    background: #fff !important;
   }
-  100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+
+  /* Hide navigation chrome */
+  aside,
+  nav,
+  header,
+  .no-print,
+  [data-role='sidebar'],
+  [data-role='header'] {
+    display: none !important;
+  }
+
+  /* Show print-only blocks */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Monospace font for IDs and timestamps in print */
+  [data-print='mono'],
+  .font-mono,
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      'Liberation Mono', 'Courier New', monospace;
+    font-size: 0.75rem;
+  }
+
+  /* Prevent page breaks inside cards */
+  .print-break-inside-avoid {
+    break-inside: avoid;
   }
 }

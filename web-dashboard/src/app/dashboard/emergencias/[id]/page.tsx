@@ -23,28 +23,27 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle,
+  CheckCircle2,
   ExternalLink,
+  Printer,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import EstadoBadge from '@/components/emergencias/EstadoBadge';
 import ClasificarModal from '@/components/emergencias/ClasificarModal';
 import AsignarUnidadModal from '@/components/emergencias/AsignarUnidadModal';
+import DossierImprimible from '@/components/emergencias/DossierImprimible';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { useAlertSound } from '@/hooks/useAlertSound';
 import { Emergencia, EstadoEmergencia, CatalogoTipoEmergencia, Unidad, RolUsuario } from '@/types';
 import { mockEmergencias, mockCatalogo, mockUnidades } from '@/lib/mock-data';
-
-const obtenerUrlEvidencia = (url: string) => {
-  if (/^https?:\/\//i.test(url)) return url;
-  const apiOrigin = (api.defaults.baseURL || 'http://localhost:3001/api/v1').replace(/\/api\/v1\/?$/, '');
-  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`;
-};
 
 export default function DetalleEmergenciaPage() {
   const params = useParams();
   const router = useRouter();
   const idEmergencia = params.id as string;
   const { usuario } = useAuth();
+  const { playDispatchChirp } = useAlertSound();
 
   const [emergencia, setEmergencia] = useState<Emergencia | null>(null);
   const [tiposCatalogo, setTiposCatalogo] = useState<CatalogoTipoEmergencia[]>(mockCatalogo);
@@ -124,9 +123,11 @@ export default function DetalleEmergenciaPage() {
   const handleAsignar = async (data: { id_unidad: number; notas_despacho?: string }) => {
     try {
       await api.patch(`/emergencias/${idEmergencia}/asignar`, data);
+      playDispatchChirp();
       await cargarEmergencia();
     } catch {
       // Modo local simulado
+      playDispatchChirp();
       setEmergencia((prev) => {
         if (!prev) return null;
         const u = unidades.find((item) => item.id === data.id_unidad);
@@ -211,19 +212,29 @@ export default function DetalleEmergenciaPage() {
     );
   }
 
-  const esAdmin = usuario?.rol === RolUsuario.ADMIN;
-  const esOperadorIntegral =
-    usuario?.rol === RolUsuario.OPERADOR_INTEGRAL ||
-    (usuario?.rol as string) === 'OPERADOR' ||
-    (usuario?.rol as string) === 'DESPACHADOR' ||
-    esAdmin ||
-    true; // Permitir en demo
-  const esPersonalCampo = usuario?.rol === RolUsuario.PERSONAL_CAMPO || esAdmin || true;
+  const rol = String(usuario?.rol || '');
+  const esAdmin = rol === 'ADMIN' || rol === RolUsuario.ADMIN;
+  // Unificación Operador-Despachador (CAD Integral):
+  // El operador central gestiona fluidamente tanto el triage como el despacho táctico.
+  const esOperadorCAD =
+    rol === 'OPERADOR' ||
+    rol === RolUsuario.OPERADOR ||
+    rol === 'DESPACHADOR' ||
+    rol === RolUsuario.DESPACHADOR ||
+    rol === 'OPERADOR_INTEGRAL' ||
+    rol === RolUsuario.OPERADOR_INTEGRAL ||
+    esAdmin;
+  const esOperador = esOperadorCAD;
+  const esDespachador = esOperadorCAD;
+  const esPersonalCampo =
+    rol === 'PERSONAL_CAMPO' ||
+    rol === RolUsuario.PERSONAL_CAMPO ||
+    esAdmin;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Encabezado y barra de navegación */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/emergencias">
             <Button variant="ghost" size="sm" className="p-2">
@@ -232,40 +243,80 @@ export default function DetalleEmergenciaPage() {
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900">Emergencia #{emergencia.id}</h1>
+              <h1 className="text-2xl font-bold text-slate-900 font-mono">Emergencia #{emergencia.id}</h1>
               <EstadoBadge estado={emergencia.estado} />
             </div>
-            <p className="text-xs text-slate-500">
-              Registrado el {new Date(emergencia.fecha_creacion).toLocaleString()}
+            <p className="text-xs text-slate-500 font-mono mt-0.5">
+              Registro: {new Date(emergencia.fecha_creacion).toLocaleString()}
             </p>
           </div>
         </div>
 
-        {/* Acciones de Transición de Estado según el rol (Operador Integral / Admin) */}
+        {/* Acciones de Transición de Estado segregadas estrictamente por rol (RBAC) */}
         <div className="flex flex-wrap items-center gap-2">
-          {emergencia.estado === EstadoEmergencia.REPORTADO && esOperadorIntegral && (
-            <Button onClick={() => setModalClasificarOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-              Clasificar Reporte (RF-03)
-            </Button>
+          {emergencia.estado === EstadoEmergencia.REPORTADO && (
+            esOperador ? (
+              <Button onClick={() => setModalClasificarOpen(true)} className="bg-amber-600 hover:bg-amber-700 font-semibold shadow-sm text-xs">
+                Clasificar Reporte (RF-03)
+              </Button>
+            ) : (
+              <span className="text-xs font-medium text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                ⏳ En cola de Triage — Esperando validación por Operador
+              </span>
+            )
           )}
 
-          {emergencia.estado === EstadoEmergencia.CLASIFICADO && esOperadorIntegral && (
-            <Button onClick={() => setModalAsignarOpen(true)} className="bg-purple-600 hover:bg-purple-700">
-              Despachar Unidad (RF-05)
-            </Button>
+          {emergencia.estado === EstadoEmergencia.CLASIFICADO && (
+            esDespachador ? (
+              <Button onClick={() => setModalAsignarOpen(true)} className="bg-purple-600 hover:bg-purple-700 font-semibold shadow-sm text-xs">
+                Despachar Unidad (RF-05)
+              </Button>
+            ) : (
+              <span className="text-xs font-medium text-purple-800 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-200">
+                📻 En cola de Despacho — Esperando asignación de unidad
+              </span>
+            )
           )}
 
-          {emergencia.estado === EstadoEmergencia.ASIGNADO && (esPersonalCampo || esOperadorIntegral) && (
-            <Button onClick={handleIniciarAtencion} disabled={accionLoading} className="bg-orange-600 hover:bg-orange-700">
-              Iniciar Atención en Escena
-            </Button>
+          {emergencia.estado === EstadoEmergencia.ASIGNADO && (
+            (esPersonalCampo || esDespachador) ? (
+              <Button onClick={handleIniciarAtencion} disabled={accionLoading} className="bg-blue-600 hover:bg-blue-700 font-semibold shadow-sm text-xs">
+                Registrar Arribo a Escena
+              </Button>
+            ) : (
+              <span className="text-xs font-medium text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                🚑 Unidad despachada — En desplazamiento hacia el punto
+              </span>
+            )
           )}
 
-          {emergencia.estado === EstadoEmergencia.EN_ATENCION && (esPersonalCampo || esOperadorIntegral) && (
-            <Button onClick={() => setModalCerrarOpen(true)} className="bg-green-600 hover:bg-green-700">
-              Cerrar Emergencia
-            </Button>
+          {emergencia.estado === EstadoEmergencia.EN_ATENCION && (
+            (esPersonalCampo || esDespachador || esAdmin) ? (
+              <Button onClick={() => setModalCerrarOpen(true)} className="bg-green-600 hover:bg-green-700 font-semibold shadow-sm text-xs">
+                Cerrar Emergencia y Asentar Resolución
+              </Button>
+            ) : (
+              <span className="text-xs font-medium text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+                🩺 Personal operativo atendiendo en la escena
+              </span>
+            )
           )}
+
+          {emergencia.estado === EstadoEmergencia.CERRADO && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-green-900 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              Incidente Concluido y Auditado
+            </span>
+          )}
+
+          <Button
+            onClick={() => window.print()}
+            variant="outline"
+            className="no-print text-xs flex items-center gap-1.5 border-slate-300 hover:bg-slate-50"
+          >
+            <Printer className="h-3.5 w-3.5 text-slate-600" />
+            Expediente Oficial
+          </Button>
         </div>
       </div>
 
@@ -312,16 +363,38 @@ export default function DetalleEmergenciaPage() {
                     Evidencia Multimedia
                   </label>
                   {emergencia.evidencia_url ? (
-                    <div className="mt-1">
-                      <a
-                        href={obtenerUrlEvidencia(emergencia.evidencia_url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline font-medium"
-                      >
-                        Abrir Foto / Video Adjunto <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
+                    (() => {
+                      const backendHost = process.env.NEXT_PUBLIC_API_URL
+                        ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/v1\/?$/, '')
+                        : 'http://localhost:3005';
+                      const urlEvidencia = emergencia.evidencia_url.startsWith('http')
+                        ? emergencia.evidencia_url
+                        : `${backendHost}${emergencia.evidencia_url.startsWith('/') ? '' : '/'}${emergencia.evidencia_url}`;
+
+                      return (
+                        <div className="mt-1 space-y-2">
+                          <a
+                            href={urlEvidencia}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline font-semibold bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg"
+                          >
+                            Abrir Evidencia Multimedia <ExternalLink className="h-3 w-3" />
+                          </a>
+                          <div className="mt-2 max-w-xs rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                            <img
+                              src={urlEvidencia}
+                              alt="Evidencia reportada"
+                              className="w-full h-32 object-cover"
+                              onError={(e) => {
+                                // Fallback si no es imagen directa
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <p className="mt-1 text-xs text-slate-400">Sin archivo multimedia adjunto</p>
                   )}
@@ -516,7 +589,12 @@ export default function DetalleEmergenciaPage() {
         onClose={() => setModalAsignarOpen(false)}
         onConfirm={handleAsignar}
         unidadesDisponibles={unidades}
+        emergenciaLatitud={emergencia.latitud}
+        emergenciaLongitud={emergencia.longitud}
       />
+
+      {/* Dossier Institucional Oficial para Impresión (@media print) */}
+      <DossierImprimible emergencia={emergencia} />
 
       {/* Modal para Cerrar Emergencia */}
       {modalCerrarOpen && (

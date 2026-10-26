@@ -40,3 +40,21 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     next(error);
   }
 }
+
+/**
+ * GET /api/v1/auth/me
+ * Retorna el perfil en tiempo real del usuario autenticado con su unidad asignada
+ */
+export async function obtenerPerfil(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const idUsuario = req.usuario!.id;
+    const usuario = await authService.obtenerPerfil(idUsuario);
+    successResponse(res, usuario, 'Perfil obtenido exitosamente');
+  } catch (error: any) {
+    if (error.statusCode) {
+      errorResponse(res, error.message, error.statusCode);
+      return;
+    }
+    next(error);
+  }
+}

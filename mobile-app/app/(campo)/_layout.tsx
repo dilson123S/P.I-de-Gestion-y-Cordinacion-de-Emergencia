@@ -1,10 +1,38 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
+import { Platform, View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/constants/theme';
+import { useAuth } from '../../src/hooks/useAuth';
+import { RolUsuario } from '../../src/types';
 
 export default function CampoLayout() {
+  const router = useRouter();
+  const { estaAutenticado, estaCargando, usuario } = useAuth();
+
+  useEffect(() => {
+    if (!estaCargando) {
+      if (!estaAutenticado) {
+        router.replace('/(auth)/login');
+      } else if (usuario && usuario.rol !== RolUsuario.PERSONAL_CAMPO) {
+        if (usuario.rol === RolUsuario.CIUDADANO) {
+          router.replace('/(ciudadano)/inicio');
+        } else {
+          router.replace('/(auth)/login');
+        }
+      }
+    }
+  }, [estaAutenticado, estaCargando, usuario, router]);
+
+  if (estaCargando || !estaAutenticado || (usuario && usuario.rol !== RolUsuario.PERSONAL_CAMPO)) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={styles.loadingText}>Verificando credencial de despacho táctico...</Text>
+      </View>
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{
@@ -63,3 +91,18 @@ export default function CampoLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+});

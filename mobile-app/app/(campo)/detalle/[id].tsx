@@ -21,7 +21,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import EstadoBadge from '../../../src/components/EstadoBadge';
 import { api } from '../../../src/lib/api';
-import { obtenerUrlEvidencia } from '../../../src/lib/apiConfig';
+import { obtenerUrlCompleta } from '../../../src/lib/apiConfig';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from '../../../src/constants/theme';
 import { Emergencia, EstadoEmergencia } from '../../../src/types';
 
@@ -177,7 +177,11 @@ export default function DetalleMisionScreen() {
         {emergencia.evidencia_url && (
           <View style={styles.evidenceContainer}>
             <Text style={styles.evidenceLabel}>Evidencia multimedia adjunta:</Text>
-            <Image source={{ uri: obtenerUrlEvidencia(emergencia.evidencia_url) }} style={styles.evidenceImage} />
+            <Image
+              source={{ uri: obtenerUrlCompleta(emergencia.evidencia_url) || emergencia.evidencia_url }}
+              style={styles.evidenceImage}
+              resizeMode="cover"
+            />
           </View>
         )}
       </View>

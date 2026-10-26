@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -7,13 +7,12 @@ import {
   RefreshControl,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
-  ActivityIndicator,
+  Linking,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import EmergenciaCard from '../../src/components/EmergenciaCard';
+import EstadoBadge from '../../src/components/EstadoBadge';
 import { api } from '../../src/lib/api';
 import { useAuth } from '../../src/hooks/useAuth';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from '../../src/constants/theme';
@@ -22,13 +21,16 @@ import { useSocket } from '../../src/contexts/SocketContext';
 
 export default function InicioScreen() {
   const router = useRouter();
-  const { usuario } = useAuth();
+  const { usuario, estaAutenticado, logout } = useAuth();
   const { socket, isConnected } = useSocket();
   const [emergencias, setEmergencias] = useState<Emergencia[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [subiendoEvidencia, setSubiendoEvidencia] = useState<string | null>(null);
 
   const cargarMisReportes = useCallback(async () => {
+    if (!estaAutenticado) {
+      setCargando(false);
+      return;
+    }
     setCargando(true);
     try {
       const res = await api.get('/emergencias/mis-reportes');
@@ -36,62 +38,24 @@ export default function InicioScreen() {
       if (Array.isArray(lista)) {
         setEmergencias(lista);
       }
-    } catch (err) {
-      console.error('Error al cargar mis reportes:', err);
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        // Redirigir limpiamente a login sin disparar logbox de error no manejado
+        await logout();
+        router.replace('/(auth)/login');
+        return;
+      }
+      console.warn('Advertencia al consultar reportes:', err?.message || err);
     } finally {
       setCargando(false);
     }
-  }, []);
-
-  const elegirYSubirEvidencia = useCallback(async (emergencia: Emergencia, origen: 'camera' | 'gallery') => {
-    try {
-      const permiso = origen === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permiso.granted) {
-        Alert.alert('Permiso requerido', 'Autoriza el acceso a la cámara o a tus fotos para adjuntar la evidencia.');
-        return;
-      }
-
-      const resultado = origen === 'camera'
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, allowsEditing: true })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, allowsEditing: true });
-      const foto = resultado.canceled ? null : resultado.assets[0];
-      if (!foto) return;
-
-      setSubiendoEvidencia(String(emergencia.id));
-      const nombre = foto.fileName || foto.uri.split('/').pop()?.split('?')[0] || 'evidencia.jpg';
-      const mime = foto.mimeType || (/\.png$/i.test(nombre) ? 'image/png' : 'image/jpeg');
-      const formData = new FormData();
-      formData.append('archivo', { uri: foto.uri, name: nombre, type: mime } as any);
-      const respuesta = await api.post(`/emergencias/${emergencia.id}/evidencia`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const evidenciaUrl = respuesta.data?.datos?.evidencia_url;
-      if (!evidenciaUrl) throw new Error('El servidor no confirmó que la foto quedó adjunta.');
-
-      setEmergencias((actuales) => actuales.map((item) =>
-        String(item.id) === String(emergencia.id) ? { ...item, evidencia_url: evidenciaUrl } : item
-      ));
-      Alert.alert('Foto adjunta', 'El operador ya puede abrir la evidencia desde el panel web.');
-    } catch (error: any) {
-      Alert.alert('No se pudo adjuntar la foto', error?.response?.data?.mensaje || error.message || 'Intenta nuevamente.');
-    } finally {
-      setSubiendoEvidencia(null);
-    }
-  }, []);
-
-  const adjuntarEvidencia = (emergencia: Emergencia) => {
-    Alert.alert('Adjuntar evidencia', 'Elige cómo agregar la foto a este reporte.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Tomar foto', onPress: () => elegirYSubirEvidencia(emergencia, 'camera') },
-      { text: 'Elegir de galería', onPress: () => elegirYSubirEvidencia(emergencia, 'gallery') },
-    ]);
-  };
+  }, [estaAutenticado, logout, router]);
 
   useEffect(() => {
-    cargarMisReportes();
-  }, [cargarMisReportes]);
+    if (estaAutenticado) {
+      cargarMisReportes();
+    }
+  }, [estaAutenticado, cargarMisReportes]);
 
   // Actualización instantánea por WebSocket
   useEffect(() => {
@@ -107,6 +71,12 @@ export default function InicioScreen() {
     };
   }, [socket, cargarMisReportes]);
 
+  // Caso activo más reciente
+  const casoActivo = useMemo(
+    () => emergencias.find((e) => e.estado !== EstadoEmergencia.CERRADO),
+    [emergencias]
+  );
+
   // Métricas rápidas
   const activasCount = emergencias.filter(
     (e) => e.estado !== EstadoEmergencia.CERRADO
@@ -114,6 +84,22 @@ export default function InicioScreen() {
   const cerradasCount = emergencias.filter(
     (e) => e.estado === EstadoEmergencia.CERRADO
   ).length;
+
+  // Pasos de progreso para el caso activo
+  const getPasoActivo = (estado: EstadoEmergencia): number => {
+    switch (estado) {
+      case EstadoEmergencia.REPORTADO:
+        return 1;
+      case EstadoEmergencia.CLASIFICADO:
+        return 2;
+      case EstadoEmergencia.ASIGNADO:
+        return 3;
+      case EstadoEmergencia.EN_ATENCION:
+        return 4;
+      default:
+        return 0;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -133,6 +119,98 @@ export default function InicioScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Banner de Caso Activo en Vivo si existe */}
+        {casoActivo && (
+          <View style={styles.activeCaseCard}>
+            <View style={styles.activeCaseHeader}>
+              <View style={styles.activeCaseBadgeRow}>
+                <View style={styles.pulseDot} />
+                <Text style={styles.activeCaseTitle}>CASO #{casoActivo.id} EN ATENCIÓN EN VIVO</Text>
+              </View>
+              <EstadoBadge estado={casoActivo.estado} size="sm" />
+            </View>
+
+            <Text style={styles.activeCaseDesc} numberOfLines={2}>
+              {casoActivo.descripcion}
+            </Text>
+
+            {/* Stepper de Seguimiento Operativo */}
+            <View style={styles.stepperContainer}>
+              {[
+                { paso: 1, label: 'Reporte' },
+                { paso: 2, label: 'Triage' },
+                { paso: 3, label: 'Despacho' },
+                { paso: 4, label: 'En Escena' },
+              ].map((step, idx) => {
+                const pasoActual = getPasoActivo(casoActivo.estado);
+                const completado = pasoActual >= step.paso;
+                const esActual = pasoActual === step.paso;
+
+                return (
+                  <View key={step.paso} style={styles.stepItem}>
+                    <View
+                      style={[
+                        styles.stepCircle,
+                        completado && styles.stepCircleCompleted,
+                        esActual && styles.stepCircleCurrent,
+                      ]}
+                    >
+                      {completado && !esActual ? (
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.stepNumber,
+                            (completado || esActual) && { color: '#fff' },
+                          ]}
+                        >
+                          {step.paso}
+                        </Text>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.stepLabel,
+                        (completado || esActual) && styles.stepLabelActive,
+                      ]}
+                    >
+                      {step.label}
+                    </Text>
+                    {idx < 3 && (
+                      <View
+                        style={[
+                          styles.stepLine,
+                          pasoActual > step.paso && styles.stepLineCompleted,
+                        ]}
+                      />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Unidad Asignada si aplica */}
+            {casoActivo.unidad && (
+              <View style={styles.unitAssignedPill}>
+                <Ionicons name="shield-checkmark" size={14} color="#7c3aed" />
+                <Text style={styles.unitAssignedText}>
+                  Recurso Asignado: {casoActivo.unidad.tipo} [{casoActivo.unidad.codigo}]
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.activeCaseFooter}>
+              <TouchableOpacity
+                style={styles.callDispatchBtn}
+                onPress={() => Linking.openURL('tel:123')}
+              >
+                <Ionicons name="call" size={14} color="#fff" />
+                <Text style={styles.callDispatchText}>Llamar a Despacho 123</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Tarjetas de métricas rápidas */}
         <View style={styles.metricsRow}>
           <View style={[styles.metricCard, { borderLeftColor: Colors.warning }]}>
@@ -143,6 +221,29 @@ export default function InicioScreen() {
             <Text style={styles.metricNumber}>{cerradasCount}</Text>
             <Text style={styles.metricLabel}>Resueltos / Cerrados</Text>
           </View>
+        </View>
+
+        {/* Barra Rápida de Líneas Telefónicas */}
+        <View style={styles.hotlinesBar}>
+          <Text style={styles.hotlinesTitle}>LÍNEAS DIRECTAS:</Text>
+          <TouchableOpacity
+            style={styles.hotlinePill}
+            onPress={() => Linking.openURL('tel:123')}
+          >
+            <Text style={styles.hotlinePillText}>📞 123 Central</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.hotlinePill}
+            onPress={() => Linking.openURL('tel:125')}
+          >
+            <Text style={styles.hotlinePillText}>🚑 125 CRUE</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.hotlinePill}
+            onPress={() => Linking.openURL('tel:119')}
+          >
+            <Text style={styles.hotlinePillText}>🚒 119 Bomberos</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Listado o Estado Vacío */}
@@ -169,27 +270,7 @@ export default function InicioScreen() {
           <FlatList
             data={emergencias}
             keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View>
-                <EmergenciaCard emergencia={item} />
-                {(!item.evidencia_url || /^(file|content):/i.test(item.evidencia_url)) && (
-                  <TouchableOpacity
-                    style={styles.attachEvidenceButton}
-                    onPress={() => adjuntarEvidencia(item)}
-                    disabled={subiendoEvidencia !== null}
-                  >
-                    {subiendoEvidencia === String(item.id) ? (
-                      <ActivityIndicator size="small" color={Colors.primary} />
-                    ) : (
-                      <Ionicons name="camera-outline" size={16} color={Colors.primary} />
-                    )}
-                    <Text style={styles.attachEvidenceText}>
-                      {subiendoEvidencia === String(item.id) ? 'Subiendo foto…' : 'Adjuntar o reemplazar foto'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
+            renderItem={({ item }) => <EmergenciaCard emergencia={item} />}
             contentContainerStyle={styles.list}
             refreshControl={
               <RefreshControl
@@ -250,6 +331,137 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: FontSize.xs,
   },
+  activeCaseCard: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    backgroundColor: '#ffffff',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: '#fca5a5',
+    ...Shadows.md,
+  },
+  activeCaseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  activeCaseBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#dc2626',
+  },
+  activeCaseTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#dc2626',
+    letterSpacing: 0.5,
+  },
+  activeCaseDesc: {
+    fontSize: FontSize.xs,
+    color: Colors.text,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: 8,
+  },
+  stepItem: {
+    alignItems: 'center',
+    position: 'relative',
+    flex: 1,
+  },
+  stepCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  stepCircleCompleted: {
+    backgroundColor: '#16a34a',
+  },
+  stepCircleCurrent: {
+    backgroundColor: '#2563eb',
+    borderWidth: 2,
+    borderColor: '#bfdbfe',
+  },
+  stepNumber: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#64748b',
+  },
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  stepLabelActive: {
+    color: '#0f172a',
+    fontWeight: 'bold',
+  },
+  stepLine: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    right: '-50%',
+    height: 2,
+    backgroundColor: '#e2e8f0',
+    zIndex: 1,
+  },
+  stepLineCompleted: {
+    backgroundColor: '#16a34a',
+  },
+  unitAssignedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f5f3ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+  },
+  unitAssignedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6b21a8',
+  },
+  activeCaseFooter: {
+    marginTop: 10,
+    alignItems: 'flex-end',
+  },
+  callDispatchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    gap: 6,
+  },
+  callDispatchText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   metricsRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.md,
@@ -277,24 +489,35 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
+  hotlinesBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xs,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  hotlinesTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: Colors.textSecondary,
+  },
+  hotlinePill: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  hotlinePillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1e40af',
+  },
   list: {
     padding: Spacing.md,
     paddingBottom: Spacing.xxxl,
-  },
-  attachEvidenceButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 6,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    marginTop: -Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  attachEvidenceText: {
-    color: Colors.primary,
-    fontSize: FontSize.xs,
-    fontWeight: '700',
   },
   emptyContainer: {
     flex: 1,

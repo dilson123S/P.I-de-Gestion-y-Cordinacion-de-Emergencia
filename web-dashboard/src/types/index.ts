@@ -14,34 +14,57 @@ export enum EstadoEmergencia {
   CERRADO = 'CERRADO',
 }
 
-/** Roles de usuario dentro del sistema. En la web se manejan Admin y Operador Integral */
+/** Roles de usuario dentro del sistema (Arquitectura Web Bimodal: ADMIN y OPERADOR_INTEGRAL) */
 export enum RolUsuario {
   ADMIN = 'ADMIN',
   OPERADOR_INTEGRAL = 'OPERADOR_INTEGRAL',
-  CIUDADANO = 'CIUDADANO',
+  // Alias y compatibilidad con registros preexistentes en BD
+  OPERADOR = 'OPERADOR',
+  DESPACHADOR = 'DESPACHADOR',
   PERSONAL_CAMPO = 'PERSONAL_CAMPO',
-  // Compatibilidad hacia atrás con registros anteriores
-  OPERADOR = 'OPERADOR_INTEGRAL',
-  DESPACHADOR = 'OPERADOR_INTEGRAL',
+  CIUDADANO = 'CIUDADANO',
 }
 
-/** Formatea los roles con nombres legibles para la interfaz de usuario */
+/** Formatea los roles con nombres legibles institucionales para la consola web */
 export function formatearRol(rol?: string | RolUsuario): string {
   if (!rol) return '';
-  switch (rol) {
-    case RolUsuario.ADMIN:
-      return 'Administrador';
-    case RolUsuario.OPERADOR_INTEGRAL:
-    case 'OPERADOR':
-    case 'DESPACHADOR':
-      return 'Operador Integral';
-    case RolUsuario.PERSONAL_CAMPO:
-      return 'Personal de Campo';
-    case RolUsuario.CIUDADANO:
-      return 'Ciudadano';
-    default:
-      return String(rol);
+  const r = String(rol);
+  if (r === 'ADMIN' || r === RolUsuario.ADMIN) {
+    return 'Administrador';
   }
+  if (
+    r === 'OPERADOR_INTEGRAL' ||
+    r === RolUsuario.OPERADOR_INTEGRAL ||
+    r === 'OPERADOR' ||
+    r === RolUsuario.OPERADOR ||
+    r === 'DESPACHADOR' ||
+    r === RolUsuario.DESPACHADOR
+  ) {
+    return 'Operador Integral';
+  }
+  if (r === 'PERSONAL_CAMPO' || r === RolUsuario.PERSONAL_CAMPO) {
+    return 'Personal de Campo';
+  }
+  if (r === 'CIUDADANO' || r === RolUsuario.CIUDADANO) {
+    return 'Ciudadano';
+  }
+  return r;
+}
+
+/** Verifica si un rol corresponde al Operador Integral (Triage y Despacho unificados) */
+export function esOperadorIntegral(rol?: string | RolUsuario): boolean {
+  if (!rol) return false;
+  const r = String(rol);
+  return (
+    r === 'OPERADOR_INTEGRAL' ||
+    r === RolUsuario.OPERADOR_INTEGRAL ||
+    r === 'OPERADOR' ||
+    r === RolUsuario.OPERADOR ||
+    r === 'DESPACHADOR' ||
+    r === RolUsuario.DESPACHADOR ||
+    r === 'ADMIN' ||
+    r === RolUsuario.ADMIN
+  );
 }
 
 /** Estados operativos de una unidad de respuesta */

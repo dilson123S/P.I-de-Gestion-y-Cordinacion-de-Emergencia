@@ -11,25 +11,6 @@ import { successResponse, errorResponse } from '../../utils/api-response';
 import { EstadoEmergencia } from '@prisma/client';
 
 export class EmergenciasController {
-  async adjuntarEvidencia(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      if (!req.file) {
-        errorResponse(res, 'Selecciona una imagen para adjuntar.', 400);
-        return;
-      }
-      const emergencia = await emergenciasService.adjuntarEvidencia(
-        parseInt(req.params.id, 10),
-        `/uploads/${req.file.filename}`,
-        req.usuario!.id
-      );
-      emitCaseUpdate(emergencia);
-      successResponse(res, emergencia, 'Foto adjunta al reporte exitosamente');
-    } catch (error: any) {
-      if (error.statusCode) errorResponse(res, error.message, error.statusCode);
-      else next(error);
-    }
-  }
-
   /**
    * RF-01: Crear reporte inicial por ciudadano
    * POST /api/v1/emergencias
@@ -200,6 +181,35 @@ export class EmergenciasController {
       const idCiudadano = req.usuario!.id;
       const reportes = await emergenciasService.listarMisReportes(idCiudadano);
       successResponse(res, reportes, 'Reportes de ciudadano obtenidos');
+    } catch (error: any) {
+      next(error);
+    }
+  }
+
+  /**
+   * Carga de evidencia multimedia (foto/video de incidente)
+   * POST /api/v1/emergencias/upload
+   */
+  async subirEvidencia(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.file) {
+        errorResponse(res, 'No se ha adjuntado ningún archivo de evidencia multimedia', 400);
+        return;
+      }
+
+      const urlRelativa = `/uploads/evidencias/${req.file.filename}`;
+      successResponse(
+        res,
+        {
+          url: urlRelativa,
+          nombreArchivo: req.file.filename,
+          nombreOriginal: req.file.originalname,
+          tamanoBytes: req.file.size,
+          mimetype: req.file.mimetype,
+        },
+        'Evidencia multimedia subida exitosamente',
+        201
+      );
     } catch (error: any) {
       next(error);
     }

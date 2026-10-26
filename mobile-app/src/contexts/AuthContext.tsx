@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { Usuario, LoginCredentials, RegistroData } from '../types';
 import { RolUsuario } from '../types';
-import { api } from '../lib/api';
+import { api, registerOnUnauthorized } from '../lib/api';
 import { guardarToken, guardarUsuario, limpiarSesion, obtenerToken, obtenerUsuario } from '../lib/auth';
 
 /** Forma del contexto de autenticación */
@@ -30,6 +30,8 @@ export interface AuthContextType {
   /** Cierra la sesión actual */
   logout: () => Promise<void>;
   cerrarSesion: () => Promise<void>;
+  /** Sincroniza y refresca el perfil y la unidad asignada desde el backend */
+  refrescarPerfil: () => Promise<Usuario | null>;
 }
 
 /** Contexto con valores por defecto */
@@ -46,6 +48,7 @@ const AuthContext = createContext<AuthContextType>({
   registrar: async () => {},
   logout: async () => {},
   cerrarSesion: async () => {},
+  refrescarPerfil: async () => null,
 });
 
 /** Props del proveedor de autenticación */
@@ -62,8 +65,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  /** Restaura la sesión desde AsyncStorage al montar */
+  /** Refresca y sincroniza el perfil actualizado del usuario desde el servidor */
+  const refrescarPerfil = useCallback(async (): Promise<Usuario | null> => {
+    try {
+      const response = await api.get('/auth/me');
+      const usuarioActualizado: Usuario = response.data?.datos || response.data;
+      if (usuarioActualizado) {
+        await guardarUsuario(usuarioActualizado);
+        setUsuario(usuarioActualizado);
+        return usuarioActualizado;
+      }
+    } catch (error) {
+      console.warn('Advertencia al refrescar perfil con el servidor:', error);
+    }
+    return null;
+  }, []);
+
+  /** Restaura la sesión desde AsyncStorage al montar y sincroniza con el backend */
   useEffect(() => {
+    registerOnUnauthorized(() => {
+      setUsuario(null);
+    });
+
     const restaurarSesion = async () => {
       try {
         const token = await obtenerToken();
@@ -72,6 +95,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (usuarioGuardado) {
             setUsuario(usuarioGuardado);
           }
+          // Sincronizar inmediatamente en segundo plano para obtener unidad_asignada actualizada
+          refrescarPerfil();
         }
       } catch (error) {
         console.error('Error al restaurar sesión:', error);
@@ -82,7 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     restaurarSesion();
-  }, []);
+  }, [refrescarPerfil]);
 
   /**
    * Inicia sesión con las credenciales proporcionadas.
@@ -160,6 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     registrar: registro,
     logout,
     cerrarSesion: logout,
+    refrescarPerfil,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

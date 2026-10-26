@@ -19,10 +19,10 @@ router.get('/:id', obtenerPorId);
 // Actualizar ubicación en tiempo real (Personal de campo, Admin)
 router.patch('/:id/ubicacion', actualizarUbicacion);
 
-// Cambiar estado operativo (Despachador, Personal de campo, Admin)
+// Cambiar estado operativo (Operador, Despachador, Operador Integral, Personal de campo, Admin)
 router.patch(
   '/:id/estado',
-  requireRole(RolUsuario.DESPACHADOR, RolUsuario.PERSONAL_CAMPO, RolUsuario.ADMIN),
+  requireRole(RolUsuario.OPERADOR, RolUsuario.DESPACHADOR, RolUsuario.OPERADOR_INTEGRAL, RolUsuario.PERSONAL_CAMPO, RolUsuario.ADMIN),
   cambiarEstado
 );
 

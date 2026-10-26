@@ -37,49 +37,49 @@ async function main() {
   const operadorPassword = await bcrypt.hash('operador123', SALT_ROUNDS);
   const operador1 = await prisma.usuario.upsert({
     where: { email: 'operador1@emergencias.gob' },
-    update: {},
+    update: { rol: RolUsuario.OPERADOR_INTEGRAL },
     create: {
       nombre: 'María',
       apellido: 'López Hernández',
       email: 'operador1@emergencias.gob',
       telefono: '+57 300 888 0002',
       password_hash: operadorPassword,
-      rol: RolUsuario.OPERADOR,
+      rol: RolUsuario.OPERADOR_INTEGRAL,
       activo: true,
     },
   });
-  console.log(`✅ Operador 1 creado: ${operador1.email}`);
+  console.log(`✅ Operador Integral 1 creado: ${operador1.email}`);
 
   const operador2 = await prisma.usuario.upsert({
     where: { email: 'operador2@emergencias.gob' },
-    update: {},
+    update: { rol: RolUsuario.OPERADOR_INTEGRAL },
     create: {
       nombre: 'Carlos',
       apellido: 'Martínez Ruiz',
       email: 'operador2@emergencias.gob',
       telefono: '+57 300 888 0003',
       password_hash: operadorPassword,
-      rol: RolUsuario.OPERADOR,
+      rol: RolUsuario.OPERADOR_INTEGRAL,
       activo: true,
     },
   });
-  console.log(`✅ Operador 2 creado: ${operador2.email}`);
+  console.log(`✅ Operador Integral 2 creado: ${operador2.email}`);
 
   const despachadorPassword = await bcrypt.hash('despachador123', SALT_ROUNDS);
   const despachador = await prisma.usuario.upsert({
     where: { email: 'despachador1@emergencias.gob' },
-    update: {},
+    update: { rol: RolUsuario.OPERADOR_INTEGRAL },
     create: {
       nombre: 'Ana',
       apellido: 'García Morales',
       email: 'despachador1@emergencias.gob',
       telefono: '+57 300 888 0004',
       password_hash: despachadorPassword,
-      rol: RolUsuario.DESPACHADOR,
+      rol: RolUsuario.OPERADOR_INTEGRAL,
       activo: true,
     },
   });
-  console.log(`✅ Despachador creado: ${despachador.email}`);
+  console.log(`✅ Operador Integral (Despacho) creado: ${despachador.email}`);
 
   const campoPassword = await bcrypt.hash('campo123', SALT_ROUNDS);
   const personalCampo = await prisma.usuario.upsert({
@@ -96,6 +96,22 @@ async function main() {
     },
   });
   console.log(`✅ Personal de campo creado: ${personalCampo.email}`);
+
+  const ciudadanoPassword = await bcrypt.hash('ciudadano123', SALT_ROUNDS);
+  const ciudadanoDemo = await prisma.usuario.upsert({
+    where: { email: 'ciudadano@correo.com' },
+    update: {},
+    create: {
+      nombre: 'Juan',
+      apellido: 'Pérez',
+      email: 'ciudadano@correo.com',
+      telefono: '+57 310 555 1234',
+      password_hash: ciudadanoPassword,
+      rol: RolUsuario.CIUDADANO,
+      activo: true,
+    },
+  });
+  console.log(`✅ Ciudadano demo creado: ${ciudadanoDemo.email}`);
 
   // =============================================
   // 2. CATÁLOGO DE TIPOS DE EMERGENCIA (RF-09)

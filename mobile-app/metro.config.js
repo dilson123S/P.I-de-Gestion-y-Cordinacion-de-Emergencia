@@ -7,6 +7,8 @@ const enhanceDefaultMiddleware = config.server.enhanceMiddleware;
 config.server.enhanceMiddleware = (middleware, server) => {
   const defaultMiddleware = enhanceDefaultMiddleware(middleware, server);
 
+  const backendPort = parseInt(process.env.BACKEND_PORT || '3005', 10);
+
   return (req, res, next) => {
     if (!req.url || (!req.url.startsWith('/api/v1') && !req.url.startsWith('/uploads'))) {
       return defaultMiddleware(req, res, next);
@@ -15,10 +17,10 @@ config.server.enhanceMiddleware = (middleware, server) => {
     const apiRequest = http.request(
       {
         hostname: '127.0.0.1',
-        port: 3001,
+        port: backendPort,
         method: req.method,
         path: req.url,
-        headers: { ...req.headers, host: 'localhost:3001' },
+        headers: { ...req.headers, host: `localhost:${backendPort}` },
       },
       (apiResponse) => {
         res.writeHead(apiResponse.statusCode || 502, apiResponse.headers);

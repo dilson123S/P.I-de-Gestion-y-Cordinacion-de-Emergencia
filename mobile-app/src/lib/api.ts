@@ -10,6 +10,13 @@ import { API_BASE_URL } from './apiConfig';
 
 /** Clave de almacenamiento para el token JWT */
 const TOKEN_KEY = '@sigem_token';
+const USER_KEY = '@sigem_user';
+
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export function registerOnUnauthorized(callback: () => void) {
+  onUnauthorizedCallback = callback;
+}
 
 /**
  * URL base de la API.
@@ -57,7 +64,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await AsyncStorage.removeItem(TOKEN_KEY);
+      try {
+        await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+      } catch {
+        // Ignorar fallos de I/O al limpiar
+      }
+      if (onUnauthorizedCallback) {
+        onUnauthorizedCallback();
+      }
     }
     return Promise.reject(error);
   }

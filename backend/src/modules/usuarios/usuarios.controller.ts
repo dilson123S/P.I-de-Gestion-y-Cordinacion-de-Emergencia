@@ -40,3 +40,26 @@ export async function actualizar(req: Request, res: Response, next: NextFunction
     next(error);
   }
 }
+
+export async function eliminar(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const resultado = await usuariosService.eliminar(id);
+    successResponse(res, resultado, 'Usuario eliminado exitosamente');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function crear(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const usuario = await usuariosService.crear(req.body);
+    successResponse(res, usuario, 'Usuario creado exitosamente', 201);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      errorResponse(res, 'El correo electrónico ya se encuentra registrado', 409);
+    } else {
+      next(error);
+    }
+  }
+}

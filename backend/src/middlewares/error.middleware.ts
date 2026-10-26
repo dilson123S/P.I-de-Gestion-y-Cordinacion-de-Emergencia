@@ -7,6 +7,19 @@ import { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
 
 /**
+ * Clase de error operacional con código de estado HTTP
+ */
+export class AppError extends Error {
+  public statusCode: number;
+
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.statusCode = statusCode;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/**
  * Middleware global de manejo de errores de Express
  * Debe registrarse como el último middleware en la cadena
  */

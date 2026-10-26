@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/hooks/useAuth';
@@ -7,7 +7,21 @@ import { Colors, Spacing, FontSize, BorderRadius, Shadows } from '../../src/cons
 
 export default function PerfilCampoScreen() {
   const router = useRouter();
-  const { usuario, logout } = useAuth();
+  const { usuario, logout, refrescarPerfil } = useAuth();
+  const [refrescando, setRefrescando] = useState(false);
+
+  const sincronizar = useCallback(async () => {
+    setRefrescando(true);
+    try {
+      await refrescarPerfil();
+    } finally {
+      setRefrescando(false);
+    }
+  }, [refrescarPerfil]);
+
+  useEffect(() => {
+    sincronizar();
+  }, [sincronizar]);
 
   const handleLogout = () => {
     Alert.alert('Finalizar Turno', '¿Confirmas la entrega de turno y cierre de sesión operativa?', [
@@ -23,8 +37,16 @@ export default function PerfilCampoScreen() {
     ]);
   };
 
+  const unidad = usuario?.unidad_asignada;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refrescando} onRefresh={sincronizar} colors={[Colors.primary]} />
+      }
+    >
       {/* Credencial Operativa */}
       <View style={styles.cardCredential}>
         <View style={styles.badgeTop}>
@@ -40,34 +62,73 @@ export default function PerfilCampoScreen() {
         </Text>
         <Text style={styles.email}>{usuario?.email}</Text>
 
-        <View style={styles.roleChip}>
-          <Ionicons name="medical" size={14} color="#38bdf8" />
-          <Text style={styles.roleChipText}>Personal de Respuesta y Rescate</Text>
-        </View>
+        {unidad ? (
+          <View style={styles.roleChipUnit}>
+            <Ionicons name="car-sport" size={14} color="#60a5fa" />
+            <Text style={styles.roleChipUnitText}>
+              Unidad Oficial [{unidad.codigo}] • {unidad.tipo.split('-')[0].trim()}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.roleChip}>
+            <Ionicons name="medical" size={14} color="#38bdf8" />
+            <Text style={styles.roleChipText}>Personal de Respuesta y Rescate</Text>
+          </View>
+        )}
       </View>
 
       {/* Estado del Turno y Recursos */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Estado de Disponibilidad</Text>
+        <View style={styles.cardHeader}>
+          <Text style={styles.sectionTitle}>Estado de Disponibilidad Táctica</Text>
+          <TouchableOpacity onPress={sincronizar} style={styles.refreshIconBtn} disabled={refrescando}>
+            <Ionicons name="refresh" size={16} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.shiftRow}>
           <View style={styles.activeDot} />
           <View style={{ flex: 1 }}>
             <Text style={styles.shiftTitle}>Guardia Activa</Text>
-            <Text style={styles.shiftSub}>Recepción abierta de misiones y despachos</Text>
+            <Text style={styles.shiftSub}>Recepción abierta de misiones y órdenes de despacho (CAD 123)</Text>
           </View>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.unitRow}>
-          <Ionicons name="car-sport-outline" size={20} color={Colors.primary} />
+          <View style={styles.unitIconContainer}>
+            <Ionicons name="car-sport" size={24} color={Colors.primary} />
+          </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.unitTitle}>Recurso Móvil</Text>
-            <Text style={styles.unitSub}>
-              {usuario?.unidad_asignada
-                ? `${usuario.unidad_asignada.tipo} - ${usuario.unidad_asignada.codigo || ''}`
-                : 'Móvil de Respuesta Rápida'}
-            </Text>
+            <View style={styles.unitHeaderRow}>
+              <Text style={styles.unitTitle}>Recurso Móvil Asignado</Text>
+              {unidad && (
+                <View style={styles.statusPillGreen}>
+                  <Text style={styles.statusPillGreenText}>{unidad.estado || 'DISPONIBLE'}</Text>
+                </View>
+              )}
+            </View>
+
+            {unidad ? (
+              <View style={styles.unitDataBox}>
+                <Text style={styles.unitCode}>
+                  [{unidad.codigo}] {unidad.tipo}
+                </Text>
+                <Text style={styles.unitSub}>
+                  Placa Oficial: <Text style={styles.unitBold}>{unidad.placa || 'En trámite'}</Text>
+                </Text>
+                {unidad.latitud_actual && unidad.longitud_actual && (
+                  <Text style={styles.unitCoords}>
+                    📍 Base GPS: {unidad.latitud_actual.toFixed(4)}, {unidad.longitud_actual.toFixed(4)}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.unitSubPending}>
+                Sin unidad vinculada. El Administrador asignará tu unidad con sigla y correlativo desde la Consola Central.
+              </Text>
+            )}
           </View>
         </View>
       </View>
@@ -83,7 +144,7 @@ export default function PerfilCampoScreen() {
         <View style={styles.radioRow}>
           <Ionicons name="cellular-outline" size={20} color={Colors.textSecondary} />
           <Text style={styles.radioText}>Despacho Táctico: </Text>
-          <Text style={styles.radioCode}>CH-04 APOYO MÉDICO</Text>
+          <Text style={styles.radioCode}>CH-04 APOYO MÉDICO / POLICIAL</Text>
         </View>
       </View>
 
@@ -130,22 +191,25 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#1e40af',
-    justifyContent: 'center',
+    backgroundColor: Colors.primary,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.sm,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#38bdf8',
   },
   name: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: '800',
     color: '#ffffff',
+    textAlign: 'center',
   },
   email: {
     fontSize: FontSize.xs,
     color: '#94a3b8',
     marginTop: 2,
+    marginBottom: Spacing.md,
+    fontFamily: 'monospace',
   },
   roleChip: {
     flexDirection: 'row',
@@ -153,14 +217,32 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: '#1e293b',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
-    marginTop: Spacing.sm + 2,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   roleChipText: {
+    color: '#e2e8f0',
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+  },
+  roleChipUnit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1e3a8a',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  roleChipUnitText: {
+    color: '#93c5fd',
     fontSize: FontSize.xs,
     fontWeight: '700',
-    color: '#38bdf8',
+    fontFamily: 'monospace',
   },
   card: {
     backgroundColor: '#ffffff',
@@ -171,32 +253,41 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     ...Shadows.sm,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
   sectionTitle: {
     fontSize: FontSize.xs + 1,
-    fontWeight: '700',
-    color: Colors.textSecondary,
+    fontWeight: '800',
+    color: Colors.text,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
+  },
+  refreshIconBtn: {
+    padding: 4,
   },
   shiftRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
   activeDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#22c55e',
+    backgroundColor: Colors.success,
   },
   shiftTitle: {
-    fontSize: FontSize.sm + 1,
+    fontSize: FontSize.sm,
     fontWeight: '700',
     color: Colors.text,
   },
   shiftSub: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.xs - 1,
     color: Colors.textSecondary,
     marginTop: 1,
   },
@@ -207,24 +298,79 @@ const styles = StyleSheet.create({
   },
   unitRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  unitIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  unitHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   unitTitle: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  statusPillGreen: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  statusPillGreenText: {
+    fontSize: FontSize.xs - 2,
+    color: '#065f46',
+    fontWeight: '800',
+  },
+  unitDataBox: {
+    marginTop: 4,
+  },
+  unitCode: {
+    fontSize: FontSize.sm + 1,
+    fontWeight: '800',
     color: Colors.text,
+    fontFamily: 'monospace',
   },
   unitSub: {
     fontSize: FontSize.xs,
     color: Colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
+  },
+  unitBold: {
+    fontWeight: '700',
+    color: Colors.text,
+    fontFamily: 'monospace',
+  },
+  unitCoords: {
+    fontSize: FontSize.xs - 1,
+    color: Colors.textSecondary,
+    fontFamily: 'monospace',
+    marginTop: 3,
+  },
+  unitSubPending: {
+    fontSize: FontSize.xs,
+    color: '#b45309',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   radioRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
-    gap: 6,
+    marginTop: Spacing.xs,
+    gap: Spacing.xs,
   },
   radioText: {
     fontSize: FontSize.xs,
@@ -240,17 +386,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
+    gap: Spacing.xs,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#fecaca',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm + 2,
+    marginTop: Spacing.sm,
+    ...Shadows.sm,
   },
   logoutText: {
     color: Colors.danger,
+    fontSize: FontSize.xs + 1,
     fontWeight: '700',
-    fontSize: FontSize.sm,
   },
 });

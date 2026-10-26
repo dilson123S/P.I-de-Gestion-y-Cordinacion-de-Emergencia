@@ -9,7 +9,6 @@ import http from 'http';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { Server as SocketIOServer } from 'socket.io';
-import { subirEvidencia, evidenciasDir } from './modules/emergencias/evidencias.upload';
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -19,7 +18,6 @@ const io = new SocketIOServer(httpServer, {
 
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
-app.use('/uploads', express.static(evidenciasDir));
 
 const PORT = process.env.PORT || 3001;
 
@@ -127,38 +125,6 @@ const authMiddleware = (req: Request, _res: Response, next: Function) => {
 };
 
 /* ─── Rutas de Autenticación ─── */
-
-app.post('/api/v1/emergencias/evidencias', authMiddleware, (req: Request, res: Response, next) => {
-  const usuario = (req as any).usuario;
-  if (!usuario || !['CIUDADANO', 'ADMIN'].includes(usuario.rol)) {
-    return res.status(403).json({ ok: false, mensaje: 'No tienes permisos para subir evidencia.' });
-  }
-  subirEvidencia.single('archivo')(req, res, (error) => {
-    if (error) return next(error);
-    if (!req.file) return res.status(400).json({ ok: false, mensaje: 'Selecciona una imagen para adjuntar.' });
-    return res.status(201).json({
-      ok: true,
-      mensaje: 'Evidencia subida exitosamente',
-      datos: { evidencia_url: `/uploads/${req.file.filename}` },
-    });
-  });
-});
-
-app.post('/api/v1/emergencias/:id/evidencia', authMiddleware, (req: Request, res: Response, next) => {
-  const usuario = (req as any).usuario;
-  subirEvidencia.single('archivo')(req, res, (error) => {
-    if (error) return next(error);
-    if (!req.file) return res.status(400).json({ ok: false, mensaje: 'Selecciona una imagen para adjuntar.' });
-    const emergencia = emergencias.find((item) => String(item.id) === req.params.id);
-    if (!emergencia) return res.status(404).json({ ok: false, mensaje: 'Reporte no encontrado.' });
-    if (emergencia.id_ciudadano !== usuario?.id) {
-      return res.status(403).json({ ok: false, mensaje: 'Solo puedes adjuntar evidencia a tus propios reportes.' });
-    }
-    emergencia.evidencia_url = `/uploads/${req.file.filename}`;
-    io.emit('case:update', emergencia);
-    return res.json({ ok: true, mensaje: 'Foto adjunta al reporte exitosamente', datos: emergencia });
-  });
-});
 
 app.post('/api/v1/auth/login', (req: Request, res: Response) => {
   const { email, password } = req.body;

@@ -19,15 +19,24 @@ export function requireRole(...roles: RolUsuario[]) {
       return;
     }
 
-    // Verificar que el rol del usuario esté en la lista de roles permitidos
-    // El rol ADMIN siempre tiene acceso.
-    // El rol OPERADOR_INTEGRAL unifica los permisos operativos de OPERADOR y DESPACHADOR.
+    // Verificar que el rol del usuario esté en la lista de roles permitidos.
+    // - El rol ADMIN siempre tiene acceso a todas las rutas.
+    // - Unificación Operador-Despachador (CAD Integral):
+    //   Los roles OPERADOR, DESPACHADOR y OPERADOR_INTEGRAL son mutuamente equivalentes
+    //   en todas las operaciones de triage, clasificación, despacho y control táctico.
     const rolUsuario = String(user.rol);
+    const esOperadorCAD =
+      rolUsuario === 'OPERADOR' ||
+      rolUsuario === 'DESPACHADOR' ||
+      rolUsuario === 'OPERADOR_INTEGRAL';
+
+    const requiereOperadorODespachador =
+      roles.includes(RolUsuario.OPERADOR) || roles.includes(RolUsuario.DESPACHADOR);
+
     const tieneAcceso =
       roles.includes(user.rol) ||
       rolUsuario === 'ADMIN' ||
-      (rolUsuario === 'OPERADOR_INTEGRAL' &&
-        (roles.includes(RolUsuario.OPERADOR) || roles.includes(RolUsuario.DESPACHADOR)));
+      (esOperadorCAD && requiereOperadorODespachador);
 
     if (!tieneAcceso) {
       res.status(403).json({

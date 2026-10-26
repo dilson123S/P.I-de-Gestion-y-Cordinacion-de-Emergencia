@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "iniciar": "cmd /c iniciar-sigem.bat",
+    "detener": "cmd /c detener-sigem.bat",
     "dev": "npm run dev --prefix web-dashboard",
     "dev:web": "npm run dev --prefix web-dashboard",
     "dev:backend": "npm run dev --prefix backend",

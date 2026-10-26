@@ -19,14 +19,16 @@ dist/
 **/dist/
 build/
 **/build/
+*.tsbuildinfo
+**/*.tsbuildinfo
 
 # Environment files
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-**/.env.local
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # Logs
 npm-debug.log*
