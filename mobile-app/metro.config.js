@@ -8,7 +8,7 @@ config.server.enhanceMiddleware = (middleware, server) => {
   const defaultMiddleware = enhanceDefaultMiddleware(middleware, server);
 
   return (req, res, next) => {
-    if (!req.url || !req.url.startsWith('/api/v1')) {
+    if (!req.url || (!req.url.startsWith('/api/v1') && !req.url.startsWith('/uploads'))) {
       return defaultMiddleware(req, res, next);
     }
 

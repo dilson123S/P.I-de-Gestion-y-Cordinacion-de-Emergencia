@@ -16,11 +16,29 @@ import {
   cerrarEmergenciaSchema,
 } from './emergencias.schemas';
 import { RolUsuario } from '@prisma/client';
+import { subirEvidencia } from './evidencias.upload';
+import { successResponse } from '../../utils/api-response';
 
 const router = Router();
 
 // Todas las rutas de emergencias requieren autenticación
 router.use(authMiddleware);
+
+// Sube evidencia móvil y devuelve una ruta HTTP que también puede abrir la web.
+router.post('/evidencias', requireRole(RolUsuario.CIUDADANO, RolUsuario.ADMIN), subirEvidencia.single('archivo'), (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ ok: false, mensaje: 'Selecciona una imagen para adjuntar.' });
+    return;
+  }
+  successResponse(res, { evidencia_url: `/uploads/${req.file.filename}` }, 'Evidencia subida exitosamente', 201);
+});
+
+router.post(
+  '/:id/evidencia',
+  requireRole(RolUsuario.CIUDADANO),
+  subirEvidencia.single('archivo'),
+  (req, res, next) => emergenciasController.adjuntarEvidencia(req, res, next)
+);
 
 // Mis reportes (Ciudadano)
 router.get('/mis-reportes', (req, res, next) => emergenciasController.misReportes(req, res, next));

@@ -22,3 +22,9 @@ function obtenerUrlApiDeDesarrollo(): string | undefined {
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || obtenerUrlApiDeDesarrollo() || 'http://localhost:3001/api/v1';
+
+export function obtenerUrlEvidencia(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  const apiOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`;
+}

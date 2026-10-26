@@ -34,6 +34,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { Emergencia, EstadoEmergencia, CatalogoTipoEmergencia, Unidad, RolUsuario } from '@/types';
 import { mockEmergencias, mockCatalogo, mockUnidades } from '@/lib/mock-data';
 
+const obtenerUrlEvidencia = (url: string) => {
+  if (/^https?:\/\//i.test(url)) return url;
+  const apiOrigin = (api.defaults.baseURL || 'http://localhost:3001/api/v1').replace(/\/api\/v1\/?$/, '');
+  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
 export default function DetalleEmergenciaPage() {
   const params = useParams();
   const router = useRouter();
@@ -308,7 +314,7 @@ export default function DetalleEmergenciaPage() {
                   {emergencia.evidencia_url ? (
                     <div className="mt-1">
                       <a
-                        href={emergencia.evidencia_url}
+                        href={obtenerUrlEvidencia(emergencia.evidencia_url)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline font-medium"

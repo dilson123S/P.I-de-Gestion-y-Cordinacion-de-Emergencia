@@ -7,7 +7,10 @@ import {
   RefreshControl,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import EmergenciaCard from '../../src/components/EmergenciaCard';
@@ -23,6 +26,7 @@ export default function InicioScreen() {
   const { socket, isConnected } = useSocket();
   const [emergencias, setEmergencias] = useState<Emergencia[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [subiendoEvidencia, setSubiendoEvidencia] = useState<string | null>(null);
 
   const cargarMisReportes = useCallback(async () => {
     setCargando(true);
@@ -38,6 +42,52 @@ export default function InicioScreen() {
       setCargando(false);
     }
   }, []);
+
+  const elegirYSubirEvidencia = useCallback(async (emergencia: Emergencia, origen: 'camera' | 'gallery') => {
+    try {
+      const permiso = origen === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permiso.granted) {
+        Alert.alert('Permiso requerido', 'Autoriza el acceso a la cámara o a tus fotos para adjuntar la evidencia.');
+        return;
+      }
+
+      const resultado = origen === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, allowsEditing: true })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, allowsEditing: true });
+      const foto = resultado.canceled ? null : resultado.assets[0];
+      if (!foto) return;
+
+      setSubiendoEvidencia(String(emergencia.id));
+      const nombre = foto.fileName || foto.uri.split('/').pop()?.split('?')[0] || 'evidencia.jpg';
+      const mime = foto.mimeType || (/\.png$/i.test(nombre) ? 'image/png' : 'image/jpeg');
+      const formData = new FormData();
+      formData.append('archivo', { uri: foto.uri, name: nombre, type: mime } as any);
+      const respuesta = await api.post(`/emergencias/${emergencia.id}/evidencia`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const evidenciaUrl = respuesta.data?.datos?.evidencia_url;
+      if (!evidenciaUrl) throw new Error('El servidor no confirmó que la foto quedó adjunta.');
+
+      setEmergencias((actuales) => actuales.map((item) =>
+        String(item.id) === String(emergencia.id) ? { ...item, evidencia_url: evidenciaUrl } : item
+      ));
+      Alert.alert('Foto adjunta', 'El operador ya puede abrir la evidencia desde el panel web.');
+    } catch (error: any) {
+      Alert.alert('No se pudo adjuntar la foto', error?.response?.data?.mensaje || error.message || 'Intenta nuevamente.');
+    } finally {
+      setSubiendoEvidencia(null);
+    }
+  }, []);
+
+  const adjuntarEvidencia = (emergencia: Emergencia) => {
+    Alert.alert('Adjuntar evidencia', 'Elige cómo agregar la foto a este reporte.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Tomar foto', onPress: () => elegirYSubirEvidencia(emergencia, 'camera') },
+      { text: 'Elegir de galería', onPress: () => elegirYSubirEvidencia(emergencia, 'gallery') },
+    ]);
+  };
 
   useEffect(() => {
     cargarMisReportes();
@@ -119,7 +169,27 @@ export default function InicioScreen() {
           <FlatList
             data={emergencias}
             keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => <EmergenciaCard emergencia={item} />}
+            renderItem={({ item }) => (
+              <View>
+                <EmergenciaCard emergencia={item} />
+                {(!item.evidencia_url || /^(file|content):/i.test(item.evidencia_url)) && (
+                  <TouchableOpacity
+                    style={styles.attachEvidenceButton}
+                    onPress={() => adjuntarEvidencia(item)}
+                    disabled={subiendoEvidencia !== null}
+                  >
+                    {subiendoEvidencia === String(item.id) ? (
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                    ) : (
+                      <Ionicons name="camera-outline" size={16} color={Colors.primary} />
+                    )}
+                    <Text style={styles.attachEvidenceText}>
+                      {subiendoEvidencia === String(item.id) ? 'Subiendo foto…' : 'Adjuntar o reemplazar foto'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
             contentContainerStyle={styles.list}
             refreshControl={
               <RefreshControl
@@ -210,6 +280,21 @@ const styles = StyleSheet.create({
   list: {
     padding: Spacing.md,
     paddingBottom: Spacing.xxxl,
+  },
+  attachEvidenceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  attachEvidenceText: {
+    color: Colors.primary,
+    fontSize: FontSize.xs,
+    fontWeight: '700',
   },
   emptyContainer: {
     flex: 1,

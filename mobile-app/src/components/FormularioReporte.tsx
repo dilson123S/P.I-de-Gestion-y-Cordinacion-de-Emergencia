@@ -23,6 +23,7 @@ import { useLocation } from '../hooks/useLocation';
 import { formatearCoordenadas } from '../lib/location';
 import { Colors, FontSize, Spacing, BorderRadius, Shadows } from '../constants/theme';
 import type { CrearEmergenciaData } from '../types';
+import { api } from '../lib/api';
 
 interface FormularioReporteProps {
   /** Callback al enviar el formulario con los datos completos */
@@ -124,7 +125,21 @@ export default function FormularioReporte({ onSubmit, enviando = false }: Formul
     };
 
     if (imagenUri) {
-      data.evidencia_url = imagenUri;
+      const nombreArchivo = imagenUri.split('/').pop()?.split('?')[0] || 'evidencia.jpg';
+      const tipoMime = /\.png$/i.test(nombreArchivo)
+        ? 'image/png'
+        : /\.webp$/i.test(nombreArchivo)
+          ? 'image/webp'
+          : 'image/jpeg';
+      const archivo = new FormData();
+      archivo.append('archivo', { uri: imagenUri, name: nombreArchivo, type: tipoMime } as any);
+
+      const respuesta = await api.post('/emergencias/evidencias', archivo, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const evidenciaUrl = respuesta.data?.datos?.evidencia_url;
+      if (!evidenciaUrl) throw new Error('El servidor no devolvió la ruta de la foto.');
+      data.evidencia_url = evidenciaUrl;
     }
 
     await onSubmit(data);

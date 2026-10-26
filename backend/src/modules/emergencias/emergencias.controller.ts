@@ -11,6 +11,25 @@ import { successResponse, errorResponse } from '../../utils/api-response';
 import { EstadoEmergencia } from '@prisma/client';
 
 export class EmergenciasController {
+  async adjuntarEvidencia(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.file) {
+        errorResponse(res, 'Selecciona una imagen para adjuntar.', 400);
+        return;
+      }
+      const emergencia = await emergenciasService.adjuntarEvidencia(
+        parseInt(req.params.id, 10),
+        `/uploads/${req.file.filename}`,
+        req.usuario!.id
+      );
+      emitCaseUpdate(emergencia);
+      successResponse(res, emergencia, 'Foto adjunta al reporte exitosamente');
+    } catch (error: any) {
+      if (error.statusCode) errorResponse(res, error.message, error.statusCode);
+      else next(error);
+    }
+  }
+
   /**
    * RF-01: Crear reporte inicial por ciudadano
    * POST /api/v1/emergencias

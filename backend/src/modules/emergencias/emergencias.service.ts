@@ -366,6 +366,33 @@ export class EmergenciasService {
     return emergencia;
   }
 
+  async adjuntarEvidencia(id: number, evidenciaUrl: string, idCiudadano: number) {
+    return prisma.$transaction(async (tx) => {
+      const existente = await tx.emergencia.findUnique({ where: { id }, select: { id: true, id_ciudadano: true, estado: true } });
+      if (!existente) throw httpError(`Emergencia con ID ${id} no encontrada`, 404);
+      if (existente.id_ciudadano !== idCiudadano) {
+        throw httpError('Solo puedes adjuntar evidencia a tus propios reportes', 403);
+      }
+
+      const actualizada = await tx.emergencia.update({
+        where: { id },
+        data: { evidencia_url: evidenciaUrl },
+        include: INCLUDE_COMPLETO,
+      });
+      await tx.logAuditoria.create({
+        data: {
+          id_emergencia: id,
+          id_usuario_accion: idCiudadano,
+          accion_realizada: 'Evidencia fotográfica adjunta por ciudadano',
+          estado_anterior: existente.estado,
+          estado_nuevo: existente.estado,
+          datos_modificados: { evidencia_url: evidenciaUrl },
+        },
+      });
+      return actualizada;
+    });
+  }
+
   // =================================================================
   // 7. LISTAR EMERGENCIAS CON FILTROS Y PAGINACIÓN
   // =================================================================
