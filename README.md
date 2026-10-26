@@ -131,13 +131,21 @@ npm run dev
 
 ### 4. Aplicación Móvil (React Native / Expo)
 
+En una terminal desde la raíz del proyecto, inicia la API de desarrollo si no tienes PostgreSQL activo:
+
+```bash
+npm run dev:mock
+```
+
+El servidor mock permite probar el registro sin base de datos; las cuentas se conservan solo mientras ese proceso siga activo. Para guardar cuentas de forma persistente, inicia PostgreSQL y usa `npm run dev:backend`.
+
 ```bash
 cd ../mobile-app
 
 # 1. Instalar dependencias
 npm install
 
-# 2. Iniciar bundler de Expo
-npx expo start
+# 2. Iniciar bundler de Expo (tunnel para conectar el teléfono)
+npm start
 # Escanea el código QR con Expo Go en Android/iOS o presiona 'w' para web
 ```

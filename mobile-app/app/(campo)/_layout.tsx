@@ -39,8 +39,8 @@ export default function CampoLayout() {
         name="asignaciones"
         options={{
           title: 'Misiones Activas',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="clipboard-outline" size={size} color={color} />
+          tabBarIcon: ({ focused, size }) => (
+            <Ionicons name="clipboard-outline" size={size} color={focused ? '#1d4ed8' : '#64748b'} />
           ),
         }}
       />
@@ -55,8 +55,8 @@ export default function CampoLayout() {
         name="perfil"
         options={{
           title: 'Unidad y Turno',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="shield-outline" size={size} color={color} />
+          tabBarIcon: ({ focused, size }) => (
+            <Ionicons name="shield-outline" size={size} color={focused ? '#1d4ed8' : '#64748b'} />
           ),
         }}
       />

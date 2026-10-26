@@ -142,6 +142,13 @@ export default function LoginScreen() {
           <View style={styles.demoButtonsRow}>
             <TouchableOpacity
               style={styles.demoBtn}
+              onPress={() => llenarDemo('ciudadano@correo.com', 'ciudadano123')}
+            >
+              <Ionicons name="person-circle" size={14} color={Colors.primary} />
+              <Text style={styles.demoBtnText}>Ciudadano</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.demoBtn}
               onPress={() => llenarDemo('campo1@emergencias.gob', 'campo123')}
             >
               <Ionicons name="car-sport" size={14} color={Colors.primary} />

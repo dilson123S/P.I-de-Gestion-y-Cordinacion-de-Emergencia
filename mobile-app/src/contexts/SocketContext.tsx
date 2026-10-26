@@ -9,6 +9,7 @@ import { Alert, Vibration, Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { obtenerToken } from '../lib/auth';
+import { API_BASE_URL } from '../lib/apiConfig';
 import { Emergencia, EstadoEmergencia, RolUsuario } from '../types';
 
 export interface SocketContextType {
@@ -26,8 +27,11 @@ const SocketContext = createContext<SocketContextType>({
 });
 
 /** Determina la URL del servidor WebSocket */
-const obtenerSocketUrl = (): string => {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const obtenerSocketUrl = (): string | null => {
+  // Expo Go tunnel only forwards Metro's HTTP middleware, not Socket.IO upgrades.
+  if (API_BASE_URL.includes('.exp.direct')) return null;
+
+  const apiUrl = API_BASE_URL;
   return apiUrl.replace(/\/api\/v1\/?$/, '');
 };
 
@@ -105,6 +109,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const iniciarSocket = async () => {
       const token = await obtenerToken();
       const socketUrl = obtenerSocketUrl();
+      if (!socketUrl) {
+        setIsConnected(false);
+        return;
+      }
 
       socketInstance = io(socketUrl, {
         auth: { token: token || undefined },

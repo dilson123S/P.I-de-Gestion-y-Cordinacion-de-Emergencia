@@ -27,6 +27,7 @@ export default function RegistroScreen() {
   const [password, setPassword] = useState('');
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [rol, setRol] = useState<RolUsuario>(RolUsuario.CIUDADANO);
 
   const handleRegistro = async () => {
     if (!nombre.trim() || !apellido.trim() || !email.trim() || !password) {
@@ -47,19 +48,24 @@ export default function RegistroScreen() {
         email: email.trim(),
         telefono: telefono.trim() || undefined,
         password,
-        rol: RolUsuario.CIUDADANO,
+        rol,
       });
 
       Alert.alert(
-        'Registro Exitoso',
-        'Tu cuenta ha sido creada correctamente en el sistema SIGEM. Ya puedes acceder al canal de emergencias.',
+        'Registro exitoso',
+        rol === RolUsuario.CIUDADANO
+          ? 'Tu perfil de ciudadano quedó creado. Ya puedes iniciar sesión para reportar emergencias.'
+          : 'Tu perfil de operador quedó creado. Usa estas credenciales para acceder al panel web de operaciones.',
         [{ text: 'Comenzar', onPress: () => router.replace('/(auth)/login') }]
       );
     } catch (err: any) {
+      const errorDeRed = !err?.response && err?.message === 'Network Error';
       const mensaje =
         err?.response?.data?.mensaje ||
         err?.response?.data?.errores ||
-        err.message ||
+        (errorDeRed
+          ? 'No se pudo conectar con el servidor. Verifica que el backend esté iniciado y que el teléfono y la computadora estén en la misma red Wi-Fi.'
+          : err.message) ||
         'No se pudo completar el registro.';
       Alert.alert('Error en el registro', typeof mensaje === 'string' ? mensaje : JSON.stringify(mensaje));
     } finally {
@@ -79,12 +85,44 @@ export default function RegistroScreen() {
           <Text style={styles.backText}>Volver al Login</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Registro Ciudadano</Text>
+        <Text style={styles.title}>Crear perfil</Text>
         <Text style={styles.subtitle}>
-          Crea tu cuenta para reportar incidentes en tiempo real con geolocalización y fotos (RF-01)
+          Elige el tipo de cuenta que necesitas.
         </Text>
 
         <View style={styles.formCard}>
+          <Text style={styles.label}>Tipo de perfil *</Text>
+          <View style={styles.roleOptions}>
+            <TouchableOpacity
+              accessibilityRole="radio"
+              accessibilityState={{ selected: rol === RolUsuario.CIUDADANO }}
+              style={[styles.roleOption, rol === RolUsuario.CIUDADANO && styles.roleOptionSelected]}
+              onPress={() => setRol(RolUsuario.CIUDADANO)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="person-circle-outline" size={24} color={rol === RolUsuario.CIUDADANO ? Colors.primary : Colors.textSecondary} />
+              <View style={styles.roleOptionCopy}>
+                <Text style={styles.roleOptionTitle}>Ciudadano</Text>
+                <Text style={styles.roleOptionDescription}>Reporta emergencias</Text>
+              </View>
+              {rol === RolUsuario.CIUDADANO && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="radio"
+              accessibilityState={{ selected: rol === RolUsuario.OPERADOR }}
+              style={[styles.roleOption, rol === RolUsuario.OPERADOR && styles.roleOptionSelected]}
+              onPress={() => setRol(RolUsuario.OPERADOR)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="headset-outline" size={24} color={rol === RolUsuario.OPERADOR ? Colors.primary : Colors.textSecondary} />
+              <View style={styles.roleOptionCopy}>
+                <Text style={styles.roleOptionTitle}>Operador</Text>
+                <Text style={styles.roleOptionDescription}>Gestiona reportes</Text>
+              </View>
+              {rol === RolUsuario.OPERADOR && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.label}>Nombre *</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="person-outline" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
@@ -233,6 +271,39 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: Spacing.xs,
     marginTop: Spacing.xs + 2,
+  },
+  roleOptions: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    minHeight: 62,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#ffffff',
+  },
+  roleOptionSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: '#eff6ff',
+  },
+  roleOptionCopy: {
+    flex: 1,
+  },
+  roleOptionTitle: {
+    color: Colors.text,
+    fontSize: FontSize.sm + 1,
+    fontWeight: '700',
+  },
+  roleOptionDescription: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.xs,
+    marginTop: 2,
   },
   inputWrapper: {
     flexDirection: 'row',

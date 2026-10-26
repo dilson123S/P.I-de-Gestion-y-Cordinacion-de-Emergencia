@@ -78,7 +78,7 @@ export default function ClasificarModal({ isOpen, onClose, onConfirm, tiposCatal
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Notas de Clasificación del Operador</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Notas de Clasificación (Operador Integral)</label>
           <textarea
             value={notas}
             onChange={(e) => setNotas(e.target.value)}

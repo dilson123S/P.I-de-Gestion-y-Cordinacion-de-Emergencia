@@ -14,13 +14,34 @@ export enum EstadoEmergencia {
   CERRADO = 'CERRADO',
 }
 
-/** Roles de usuario dentro del sistema */
+/** Roles de usuario dentro del sistema. En la web se manejan Admin y Operador Integral */
 export enum RolUsuario {
-  CIUDADANO = 'CIUDADANO',
-  OPERADOR = 'OPERADOR',
-  DESPACHADOR = 'DESPACHADOR',
-  PERSONAL_CAMPO = 'PERSONAL_CAMPO',
   ADMIN = 'ADMIN',
+  OPERADOR_INTEGRAL = 'OPERADOR_INTEGRAL',
+  CIUDADANO = 'CIUDADANO',
+  PERSONAL_CAMPO = 'PERSONAL_CAMPO',
+  // Compatibilidad hacia atrás con registros anteriores
+  OPERADOR = 'OPERADOR_INTEGRAL',
+  DESPACHADOR = 'OPERADOR_INTEGRAL',
+}
+
+/** Formatea los roles con nombres legibles para la interfaz de usuario */
+export function formatearRol(rol?: string | RolUsuario): string {
+  if (!rol) return '';
+  switch (rol) {
+    case RolUsuario.ADMIN:
+      return 'Administrador';
+    case RolUsuario.OPERADOR_INTEGRAL:
+    case 'OPERADOR':
+    case 'DESPACHADOR':
+      return 'Operador Integral';
+    case RolUsuario.PERSONAL_CAMPO:
+      return 'Personal de Campo';
+    case RolUsuario.CIUDADANO:
+      return 'Ciudadano';
+    default:
+      return String(rol);
+  }
 }
 
 /** Estados operativos de una unidad de respuesta */

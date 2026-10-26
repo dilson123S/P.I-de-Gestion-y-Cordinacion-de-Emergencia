@@ -40,7 +40,7 @@ export default function CiudadanoLayout() {
         name="inicio"
         options={{
           title: 'Mis Reportes',
-          tabBarIcon: ({ color, size }) => <Ionicons name="newspaper-outline" size={size} color={color} />,
+          tabBarIcon: ({ focused, size }) => <Ionicons name="newspaper-outline" size={size} color={focused ? '#1e40af' : '#94a3b8'} />,
         }}
       />
       <Tabs.Screen
@@ -59,14 +59,14 @@ export default function CiudadanoLayout() {
         name="mapa"
         options={{
           title: 'Mapa',
-          tabBarIcon: ({ color, size }) => <Ionicons name="map-outline" size={size} color={color} />,
+          tabBarIcon: ({ focused, size }) => <Ionicons name="map-outline" size={size} color={focused ? '#1e40af' : '#94a3b8'} />,
         }}
       />
       <Tabs.Screen
         name="perfil"
         options={{
           title: 'Mi Perfil',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
+          tabBarIcon: ({ focused, size }) => <Ionicons name="person-outline" size={size} color={focused ? '#1e40af' : '#94a3b8'} />,
         }}
       />
     </Tabs>

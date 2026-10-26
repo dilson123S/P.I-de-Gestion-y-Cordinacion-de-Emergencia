@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Users, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '@/lib/api';
-import { Usuario } from '@/types';
+import { Usuario, formatearRol } from '@/types';
 import { mockUsuarios } from '@/lib/mock-data';
 
 export default function UsuariosPage() {
@@ -33,7 +33,7 @@ export default function UsuariosPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Directorio de Usuarios y Actores</h1>
         <p className="text-sm text-slate-500">
-          Administración de cuentas: Ciudadanos, Operadores, Despachadores y Personal de Campo
+          Administración de cuentas: Administradores y Operadores Integrales (Web), Personal de Campo y Ciudadanos (Móvil)
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export default function UsuariosPage() {
                   <td className="px-4 py-3 text-slate-600 font-mono text-xs">{u.email}</td>
                   <td className="px-4 py-3">
                     <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                      {u.rol}
+                      {formatearRol(u.rol)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">{u.telefono || '—'}</td>

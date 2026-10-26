@@ -2,6 +2,7 @@
 
 import { Bell, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { formatearRol } from '@/types';
 
 /**
  * Encabezado superior del dashboard.
@@ -40,7 +41,7 @@ export default function Header() {
               <p className="text-sm font-medium text-secondary-900">
                 {usuario.nombre} {usuario.apellido}
               </p>
-              <p className="text-xs text-secondary-500">{usuario.rol}</p>
+              <p className="text-xs text-secondary-500 font-semibold text-blue-700">{formatearRol(usuario.rol)}</p>
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
               {usuario.nombre.charAt(0)}

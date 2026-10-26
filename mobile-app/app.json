@@ -4,14 +4,16 @@
     "slug": "emergencias-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "scheme": "emergencias",
     "userInterfaceStyle": "light",
-    "splash": {
-      "backgroundColor": "#1e40af"
-    },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1e40af"
+        }
+      ],
       "expo-location",
       "expo-image-picker",
       "expo-camera"

@@ -20,7 +20,16 @@ export function requireRole(...roles: RolUsuario[]) {
     }
 
     // Verificar que el rol del usuario esté en la lista de roles permitidos
-    if (!roles.includes(user.rol)) {
+    // El rol ADMIN siempre tiene acceso.
+    // El rol OPERADOR_INTEGRAL unifica los permisos operativos de OPERADOR y DESPACHADOR.
+    const rolUsuario = String(user.rol);
+    const tieneAcceso =
+      roles.includes(user.rol) ||
+      rolUsuario === 'ADMIN' ||
+      (rolUsuario === 'OPERADOR_INTEGRAL' &&
+        (roles.includes(RolUsuario.OPERADOR) || roles.includes(RolUsuario.DESPACHADOR)));
+
+    if (!tieneAcceso) {
       res.status(403).json({
         exito: false,
         mensaje: `Acceso denegado. Se requiere uno de los siguientes roles: ${roles.join(', ')}`,

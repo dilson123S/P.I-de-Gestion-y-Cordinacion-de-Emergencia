@@ -154,6 +154,10 @@ app.post('/api/v1/auth/login', (req: Request, res: Response) => {
 
 app.post('/api/v1/auth/registrar', (req: Request, res: Response) => {
   const { nombre, apellido, email, telefono, password, rol } = req.body;
+  if (rol !== undefined && !['CIUDADANO', 'OPERADOR'].includes(rol)) {
+    return res.status(400).json({ ok: false, mensaje: 'El rol debe ser CIUDADANO u OPERADOR' });
+  }
+
   const existente = usuarios.find((u) => u.email.toLowerCase() === email?.toLowerCase());
 
   if (existente) {

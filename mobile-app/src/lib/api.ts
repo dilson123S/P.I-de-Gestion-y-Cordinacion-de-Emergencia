@@ -6,6 +6,7 @@
 
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from './apiConfig';
 
 /** Clave de almacenamiento para el token JWT */
 const TOKEN_KEY = '@sigem_token';
@@ -15,14 +16,12 @@ const TOKEN_KEY = '@sigem_token';
  * En emuladores Android, 'localhost' apunta al propio emulador;
  * usar 10.0.2.2 o la IP de red local de la máquina anfitriona.
  */
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-
 /**
  * Instancia de Axios preconfigurada con la URL base
  * y cabeceras por defecto para JSON.
  */
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

@@ -88,7 +88,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (esErrorConexion) {
           const usuarioDemo =
             mockUsuarios.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
-            mockUsuarios[1]; // Por defecto Operador
+            (email.toLowerCase().includes('admin') ? mockUsuarios[0] : mockUsuarios[1]); // Por defecto Operador Integral
 
           const tokenDemo = 'jwt_demo_token_sigem';
           guardarToken(tokenDemo);

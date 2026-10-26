@@ -206,8 +206,12 @@ export default function DetalleEmergenciaPage() {
   }
 
   const esAdmin = usuario?.rol === RolUsuario.ADMIN;
-  const esOperador = usuario?.rol === RolUsuario.OPERADOR || esAdmin || true; // Permitir en demo
-  const esDespachador = usuario?.rol === RolUsuario.DESPACHADOR || esAdmin || true;
+  const esOperadorIntegral =
+    usuario?.rol === RolUsuario.OPERADOR_INTEGRAL ||
+    (usuario?.rol as string) === 'OPERADOR' ||
+    (usuario?.rol as string) === 'DESPACHADOR' ||
+    esAdmin ||
+    true; // Permitir en demo
   const esPersonalCampo = usuario?.rol === RolUsuario.PERSONAL_CAMPO || esAdmin || true;
 
   return (
@@ -231,27 +235,27 @@ export default function DetalleEmergenciaPage() {
           </div>
         </div>
 
-        {/* Acciones de Transición de Estado según el rol */}
+        {/* Acciones de Transición de Estado según el rol (Operador Integral / Admin) */}
         <div className="flex flex-wrap items-center gap-2">
-          {emergencia.estado === EstadoEmergencia.REPORTADO && esOperador && (
+          {emergencia.estado === EstadoEmergencia.REPORTADO && esOperadorIntegral && (
             <Button onClick={() => setModalClasificarOpen(true)} className="bg-blue-600 hover:bg-blue-700">
               Clasificar Reporte (RF-03)
             </Button>
           )}
 
-          {emergencia.estado === EstadoEmergencia.CLASIFICADO && esDespachador && (
+          {emergencia.estado === EstadoEmergencia.CLASIFICADO && esOperadorIntegral && (
             <Button onClick={() => setModalAsignarOpen(true)} className="bg-purple-600 hover:bg-purple-700">
               Despachar Unidad (RF-05)
             </Button>
           )}
 
-          {emergencia.estado === EstadoEmergencia.ASIGNADO && (esPersonalCampo || esOperador) && (
+          {emergencia.estado === EstadoEmergencia.ASIGNADO && (esPersonalCampo || esOperadorIntegral) && (
             <Button onClick={handleIniciarAtencion} disabled={accionLoading} className="bg-orange-600 hover:bg-orange-700">
               Iniciar Atención en Escena
             </Button>
           )}
 
-          {emergencia.estado === EstadoEmergencia.EN_ATENCION && (esPersonalCampo || esOperador || esDespachador) && (
+          {emergencia.estado === EstadoEmergencia.EN_ATENCION && (esPersonalCampo || esOperadorIntegral) && (
             <Button onClick={() => setModalCerrarOpen(true)} className="bg-green-600 hover:bg-green-700">
               Cerrar Emergencia
             </Button>
@@ -423,9 +427,9 @@ export default function DetalleEmergenciaPage() {
                 )}
               </div>
 
-              {/* RF-03: Operador */}
+              {/* RF-03: Operador Integral (Triage) */}
               <div className="pt-3">
-                <span className="text-xs text-slate-400 font-semibold uppercase">RF-03: Operador de Triage</span>
+                <span className="text-xs text-slate-400 font-semibold uppercase">RF-03: Operador Integral (Triage)</span>
                 {emergencia.operador ? (
                   <>
                     <p className="font-medium text-slate-900 mt-0.5">
@@ -434,13 +438,13 @@ export default function DetalleEmergenciaPage() {
                     <p className="text-xs text-slate-500">{emergencia.operador.email}</p>
                   </>
                 ) : (
-                  <p className="text-xs italic text-slate-400 mt-0.5">Pendiente de asignación a operador</p>
+                  <p className="text-xs italic text-slate-400 mt-0.5">Pendiente de clasificación</p>
                 )}
               </div>
 
-              {/* RF-05: Despachador */}
+              {/* RF-05: Operador Integral (Despacho) */}
               <div className="pt-3">
-                <span className="text-xs text-slate-400 font-semibold uppercase">RF-05: Despachador</span>
+                <span className="text-xs text-slate-400 font-semibold uppercase">RF-05: Operador Integral (Despacho)</span>
                 {emergencia.despachador ? (
                   <>
                     <p className="font-medium text-slate-900 mt-0.5">

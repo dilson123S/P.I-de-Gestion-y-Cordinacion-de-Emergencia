@@ -41,9 +41,9 @@ export const registerSchema = z.object({
     .min(6, 'La contraseña debe tener al menos 6 caracteres')
     .max(100, 'La contraseña no puede exceder 100 caracteres'),
   rol: z
-    .enum(['CIUDADANO', 'OPERADOR', 'DESPACHADOR', 'PERSONAL_CAMPO', 'ADMIN'], {
+    .enum(['CIUDADANO', 'OPERADOR'], {
       errorMap: () => ({
-        message: 'El rol debe ser uno de: CIUDADANO, OPERADOR, DESPACHADOR, PERSONAL_CAMPO, ADMIN',
+        message: 'El rol debe ser CIUDADANO u OPERADOR',
       }),
     })
     .default('CIUDADANO'),
